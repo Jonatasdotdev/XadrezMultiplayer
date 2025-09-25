@@ -1,2 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using Server;
+
+var server = new GameServer("127.0.0.1", 8080);
+await server.StartAsync();
