@@ -1,49 +1,31 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Shared;
 
 namespace Server.Services;
 
-public class WindowsGameService : BackgroundService
+public class WindowsGameService : IHostedService
 {
     private readonly GameServer _gameServer;
     private readonly ILogger<WindowsGameService> _logger;
-    private readonly ServerSettings _settings;
+    private readonly CancellationTokenSource _cts = new();
 
-    public WindowsGameService(
-        GameServer gameServer, 
-        ILogger<WindowsGameService> logger,
-        IOptions<ServerSettings> settings)
+    public WindowsGameService(GameServer gameServer, ILogger<WindowsGameService> logger)
     {
         _gameServer = gameServer;
         _logger = logger;
-        _settings = settings.Value;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Serviço Xadrez Multiplayer iniciando...");
-        _logger.LogInformation("Endpoint: {Ip}:{Port}", _settings.IpAddress, _settings.Port);
-
-        try
-        {
-            await _gameServer.StartAsync(stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("Serviço cancelado via token");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro fatal no servidor de xadrez");
-            throw;
-        }
+        _logger.LogInformation("Iniciando o serviço Xadrez Multiplayer Server às {Time}", DateTime.Now);
+        _ = Task.Run(() => _gameServer.StartAsync(_cts.Token), cancellationToken);
+        return Task.CompletedTask;
     }
 
-    public override async Task StopAsync(CancellationToken cancellationToken)
+    public Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Serviço Xadrez Multiplayer parando...");
-        await base.StopAsync(cancellationToken);
+        _logger.LogInformation("Parando o serviço Xadrez Multiplayer Server às {Time}", DateTime.Now);
+        _cts.Cancel();
+        return Task.CompletedTask;
     }
 }

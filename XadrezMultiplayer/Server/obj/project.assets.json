@@ -1866,8 +1866,11 @@
   },
   "projectFileDependencyGroups": {
     "net8.0": [
+      "Microsoft.Extensions.Configuration.Json >= 8.0.0",
       "Microsoft.Extensions.Hosting >= 8.0.0",
       "Microsoft.Extensions.Hosting.WindowsServices >= 8.0.0",
+      "Microsoft.Extensions.Logging >= 8.0.0",
+      "Microsoft.Extensions.Logging.Console >= 8.0.0",
       "Shared >= 1.0.0",
       "System.Text.Json >= 8.0.0"
     ]
@@ -1918,11 +1921,23 @@
       "net8.0": {
         "targetAlias": "net8.0",
         "dependencies": {
+          "Microsoft.Extensions.Configuration.Json": {
+            "target": "Package",
+            "version": "[8.0.0, )"
+          },
           "Microsoft.Extensions.Hosting": {
             "target": "Package",
             "version": "[8.0.0, )"
           },
           "Microsoft.Extensions.Hosting.WindowsServices": {
+            "target": "Package",
+            "version": "[8.0.0, )"
+          },
+          "Microsoft.Extensions.Logging": {
+            "target": "Package",
+            "version": "[8.0.0, )"
+          },
+          "Microsoft.Extensions.Logging.Console": {
             "target": "Package",
             "version": "[8.0.0, )"
           },

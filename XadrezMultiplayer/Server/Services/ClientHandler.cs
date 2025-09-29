@@ -1,60 +1,70 @@
+using System;
+using System.Collections.Generic;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Shared;
-using Server.Models;
 
 namespace Server.Services;
 
 public class ClientHandler
 {
-    private readonly TcpClient _client;
-    private readonly GameServer _server;
+    public ClientState State { get; }
+    public GameServer Server { get; }
+    private readonly NetworkConnection _connection;
+    private readonly MessageProcessor _messageProcessor;
+    private readonly HeartbeatManager _heartbeatManager;
     private readonly ILogger _logger;
-    private NetworkStream _stream;
-    private StreamReader _reader;
-    private StreamWriter _writer;
-    
-    public string ClientId { get; private set; }
-    public string? Username { get; set; }
-    public bool IsAuthenticated { get; set; }
-    public GameSession? CurrentGame { get; set; }
+    private readonly AuthService _authService; 
 
-    public ClientHandler(TcpClient client, GameServer server, ILogger logger)
+    public ClientHandler(IServiceProvider serviceProvider, ILogger<ClientHandler> logger, 
+                    AuthService authService, GameSessionManager gameSessionManager, 
+                    IOptions<ServerSettings> settings)
     {
-        _client = client;
-        _server = server;
+        State = new ClientState();
+        Server = server;
         _logger = logger;
-        _stream = client.GetStream();
-        _reader = new StreamReader(_stream, Encoding.UTF8);
-        _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
-        ClientId = Guid.NewGuid().ToString();
+        _authService = authService;
+        _gameSessionManager = gameSessionManager;
+        _connection = ActivatorUtilities.CreateInstance<NetworkConnection>(serviceProvider, null, logger, settings);
+        _connection = new NetworkConnection(client, logger);
+        _heartbeatManager = new HeartbeatManager(logger);
+        _messageProcessor = new MessageProcessor(messageHandlers, logger);
     }
 
     public async Task HandleClientAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            _logger.LogInformation("Cliente conectado: {ClientId}", ClientId);
+            _logger.LogInformation("Cliente conectado: {ClientId}", State.ClientId);
             
-            await SendMessageAsync(new { type = "welcome", clientId = ClientId, message = "Conectado ao servidor de Xadrez" });
+            await SendMessageAsync(new { 
+                type = "welcome", 
+                clientId = State.ClientId, 
+                message = "Conectado ao servidor de Xadrez",
+                serverVersion = "1.0.0"
+            });
+
+            _ = Task.Run(() => _heartbeatManager.RunAsync(State, _connection, State.ClientId, cancellationToken), cancellationToken);
 
             string? message;
             while (!cancellationToken.IsCancellationRequested && 
-                   (message = await ReadMessageWithTimeoutAsync(cancellationToken)) != null)
+                   (message = await _connection.ReadMessageWithTimeoutAsync(cancellationToken)) != null)
             {
-                _logger.LogDebug("Mensagem de {ClientId}: {Message}", ClientId, message);
-                await ProcessMessageAsync(message);
+                State.LastActivity = DateTime.UtcNow;
+                _logger.LogDebug("Mensagem de {ClientId}: {Message}", State.ClientId, message);
+                await _messageProcessor.ProcessAsync(message, this);
             }
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Cliente {ClientId} desconectado (cancellation)", ClientId);
+            _logger.LogInformation("Cliente {ClientId} desconectado (cancellation)", State.ClientId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro com cliente {ClientId}", ClientId);
+            _logger.LogError(ex, "Erro com cliente {ClientId}", State.ClientId);
         }
         finally
         {
@@ -62,185 +72,79 @@ public class ClientHandler
         }
     }
 
-    private async Task<string?> ReadMessageWithTimeoutAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var readTask = _reader.ReadLineAsync();
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
-            
-            var completedTask = await Task.WhenAny(readTask, timeoutTask);
-            
-            if (completedTask == timeoutTask)
-            {
-                await SendMessageAsync(new { type = "timeout_warning" });
-                return null;
-            }
-            
-            return await readTask;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Timeout/erro na leitura do cliente {ClientId}", ClientId);
-            return null;
-        }
-    }
-
-    private async Task ProcessMessageAsync(string message)
-    {
-        try
-        {
-            using var jsonDoc = JsonDocument.Parse(message);
-            var root = jsonDoc.RootElement;
-            
-            if (!root.TryGetProperty("type", out var typeProperty))
-            {
-                await SendMessageAsync(new { type = "error", message = "Campo 'type' não encontrado" });
-                return;
-            }
-
-            var messageType = typeProperty.GetString();
-            
-            switch (messageType)
-            {
-                case "login":
-                    await HandleLoginAsync(root);
-                    break;
-                case "ping":
-                    await SendMessageAsync(new { type = "pong", timestamp = DateTime.UtcNow });
-                    break;
-                case "get_online_users":
-                    await HandleGetOnlineUsersAsync();
-                    break;
-                default:
-                    await SendMessageAsync(new { 
-                        type = "error", 
-                        message = $"Tipo de mensagem desconhecido: {messageType}" 
-                    });
-                    break;
-            }
-        }
-        catch (JsonException ex)
-        {
-            await SendMessageAsync(new { 
-                type = "error", 
-                message = "JSON inválido: " + ex.Message 
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao processar mensagem do cliente {ClientId}", ClientId);
-            await SendMessageAsync(new { 
-                type = "error", 
-                message = "Erro interno do servidor" 
-            });
-        }
-    }
-
-    private async Task HandleLoginAsync(JsonElement data)
-    {
-        try
-        {
-            var username = data.GetProperty("username").GetString();
-            var password = data.GetProperty("password").GetString();
-
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-            {
-                await SendMessageAsync(new { 
-                    type = "login_failed", 
-                    message = "Username e password são obrigatórios" 
-                });
-                return;
-            }
-
-            // TODO: Implementar validação segura com database
-            // Por enquanto, autenticação simples
-            Username = username;
-            IsAuthenticated = true;
-            
-            _logger.LogInformation("Usuário autenticado: {Username}", username);
-            
-            await SendMessageAsync(new { 
-                type = "login_success", 
-                username = username,
-                onlineUsers = _server.GetOnlineUsers()
-            });
-            
-            // Notificar outros clientes
-            _server.BroadcastMessage(JsonSerializer.Serialize(new {
-                type = "user_online",
-                username = username
-            }), this);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro no login do cliente {ClientId}", ClientId);
-            await SendMessageAsync(new { 
-                type = "login_failed", 
-                message = "Erro durante autenticação" 
-            });
-        }
-    }
-
-    private async Task HandleGetOnlineUsersAsync()
-    {
-        var onlineUsers = _server.GetOnlineUsers();
-        await SendMessageAsync(new {
-            type = "online_users",
-            users = onlineUsers
-        });
-    }
+    public void Initialize(TcpClient client, GameServer server)
+{
+    _connection = new NetworkConnection(client, _logger);
+    Server = server;
+    // Outras inicializações
+}
 
     public async Task SendMessageAsync(object message)
     {
-        try
+        await _connection.SendMessageAsync(message);
+    }
+
+    internal async Task HandleGameEndAsync(MoveResult moveResult)
+    {
+        if (State.CurrentGame == null) return;
+
+        var gameEndMessage = new {
+            type = "game_ended",
+            reason = moveResult.IsCheckmate ? "checkmate" : "draw",
+            winner = moveResult.IsCheckmate ? State.Username : null,
+            isDraw = moveResult.IsDraw,
+            finalBoard = State.CurrentGame.GetBoardState()
+        };
+
+        await State.CurrentGame.BroadcastToPlayers(gameEndMessage);
+
+        if (moveResult.IsCheckmate)
         {
-            var json = JsonSerializer.Serialize(message, new JsonSerializerOptions 
-            { 
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-            });
-            await _writer.WriteLineAsync(json);
+            await _authService.UpdatePlayerStats(State.Username!, true);
+            await _authService.UpdatePlayerStats(State.CurrentGame.GetOpponent(this)?.State.Username!, false);
         }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Erro ao enviar mensagem para {ClientId}", ClientId);
-            await HandleDisconnectionAsync();
-        }
+
+        State.CurrentGame = null;
     }
 
     private async Task HandleDisconnectionAsync()
     {
         try
         {
-            // Notificar partida atual sobre desconexão
-            if (CurrentGame != null)
+            if (State.CurrentGame != null)
             {
-                // TODO: Implementar lógica de desconexão da partida
+                var opponent = State.CurrentGame.GetOpponent(this);
+                if (opponent != null)
+                {
+                    await opponent.SendMessageAsync(new {
+                        type = "opponent_disconnected",
+                        message = $"{State.Username} desconectou-se"
+                    });
+                }
+                
+                State.CurrentGame.HandlePlayerDisconnect(this);
+                State.CurrentGame = null;
             }
 
-            // Remover cliente do servidor
-            _server.RemoveClient(this);
+            Server.RemoveClient(this);
 
-            // Notificar outros clientes
-            if (!string.IsNullOrEmpty(Username))
+            if (!string.IsNullOrEmpty(State.Username))
             {
-                _server.BroadcastMessage(JsonSerializer.Serialize(new {
+                Server.BroadcastMessage(JsonSerializer.Serialize(new {
                     type = "user_offline",
-                    username = Username
+                    username = State.Username
                 }), this);
             }
 
-            _logger.LogInformation("🔌 Cliente desconectado: {ClientId} ({Username})", ClientId, Username);
-
-            // Fechar conexões
-            _reader?.Dispose();
-            _writer?.Dispose();
-            _stream?.Dispose();
-            _client?.Close();
+            _logger.LogInformation("Cliente desconectado: {ClientId} ({Username})", State.ClientId, State.Username);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Erro durante desconexão de {ClientId}", ClientId);
+            _logger.LogError(ex, "Erro durante desconexão de {ClientId}", State.ClientId);
+        }
+        finally
+        {
+            _connection.Dispose();
         }
     }
 }

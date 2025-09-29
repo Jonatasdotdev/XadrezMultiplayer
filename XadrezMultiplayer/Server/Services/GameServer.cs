@@ -1,7 +1,7 @@
-using System.Net;
-using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Net;
+using System.Net.Sockets;
 using Shared;
 
 namespace Server.Services;
@@ -13,31 +13,35 @@ public class GameServer
     private TcpListener _listener;
     private readonly List<ClientHandler> _clients = new();
     private readonly object _clientsLock = new();
+    private readonly IServiceProvider _serviceProvider;
 
-    public GameServer(ILogger<GameServer> logger, IOptions<ServerSettings> settings)
+    public GameServer(ILogger<GameServer> logger, IOptions<ServerSettings> settings, IServiceProvider serviceProvider)
     {
         _logger = logger;
         _settings = settings.Value;
+        _serviceProvider = serviceProvider;
         _listener = new TcpListener(IPAddress.Parse(_settings.IpAddress), _settings.Port);
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _listener.Start();
-        _logger.LogInformation("Servidor socket iniciado - Aguardando conexões...");
+        _logger.LogInformation("Servidor socket iniciado em {IpAddress}:{Port} - Aguardando conexões... às {Time}", 
+            _settings.IpAddress, _settings.Port, DateTime.Now);
 
-        while (!cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested && _clients.Count < _settings.MaxConnections)
         {
             try
             {
                 var client = await _listener.AcceptTcpClientAsync(cancellationToken);
-                var handler = new ClientHandler(client, this, _logger);
-                
+                var handler = _serviceProvider.GetRequiredService<ClientHandler>();
+                handler.Initialize(client, this);
+
                 lock (_clientsLock)
                 {
                     _clients.Add(handler);
                 }
-                
+
                 _ = Task.Run(() => handler.HandleClientAsync(cancellationToken), cancellationToken);
             }
             catch (OperationCanceledException)
@@ -46,15 +50,17 @@ public class GameServer
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erro ao aceitar conexão");
+                _logger.LogError(ex, "Erro ao aceitar conexão às {Time}", DateTime.Now);
             }
         }
+
+        _logger.LogWarning("Limite de conexões ({MaxConnections}) atingido ou servidor parado.", _settings.MaxConnections);
     }
 
     public void BroadcastMessage(string message, ClientHandler? excludeClient = null)
     {
         List<ClientHandler> clientsCopy;
-        
+
         lock (_clientsLock)
         {
             clientsCopy = new List<ClientHandler>(_clients);
@@ -62,7 +68,7 @@ public class GameServer
 
         foreach (var client in clientsCopy.Where(c => c != excludeClient && c.IsAuthenticated))
         {
-            _ = Task.Run(async () => 
+            _ = Task.Run(async () =>
             {
                 try
                 {
@@ -70,7 +76,7 @@ public class GameServer
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Erro no broadcast para {Username}", client.Username);
+                    _logger.LogWarning(ex, "Erro no broadcast para {Username} às {Time}", client.Username, DateTime.Now);
                 }
             });
         }
@@ -80,7 +86,7 @@ public class GameServer
     {
         lock (_clientsLock)
         {
-            return _clients.FirstOrDefault(c => 
+            return _clients.FirstOrDefault(c =>
                 c.IsAuthenticated && c.Username == username);
         }
     }
