@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Shared;
+using Server.Models;
 
 namespace Server.Services;
 

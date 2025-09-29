@@ -43,7 +43,7 @@ public class WindowsGameService : BackgroundService
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("🛑 Serviço Xadrez Multiplayer parando...");
+        _logger.LogInformation("Serviço Xadrez Multiplayer parando...");
         await base.StopAsync(cancellationToken);
     }
 }

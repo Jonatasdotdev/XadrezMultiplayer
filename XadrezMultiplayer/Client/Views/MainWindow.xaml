@@ -1,0 +1,122 @@
+<Window x:Class="Client.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Client.ViewModels"
+        Title="Xadrez Multiplayer" 
+        Height="600" 
+        Width="800"
+        WindowStartupLocation="CenterScreen">
+    
+    <Window.DataContext>
+        <vm:MainViewModel />
+    </Window.DataContext>
+    
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="10" CornerRadius="5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0" Text="♞ Xadrez Multiplayer" 
+                          Foreground="White" FontSize="18" FontWeight="Bold"
+                          VerticalAlignment="Center"/>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0">
+                    <TextBox Text="{Binding ServerIp}" Width="100" Margin="0,0,5,0"
+                            ToolTip="IP do Servidor"/>
+                    <TextBox Text="{Binding ServerPort}" Width="50" Margin="0,0,5,0"
+                            ToolTip="Porta"/>
+                    <Button Content="{Binding IsConnected, Converter={StaticResource ConnectionButtonConverter}}"
+                            Command="{Binding ConnectCommand}"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                            Padding="10,5" Margin="0,0,5,0"/>
+                    
+                    <Button Content="Desconectar" Command="{Binding DisconnectCommand}"
+                            IsEnabled="{Binding IsConnected}"
+                            Padding="10,5" Background="#E74C3C" Foreground="White"/>
+                </StackPanel>
+                
+                <TextBlock Grid.Column="2" Text="{Binding StatusMessage}" 
+                          Foreground="White" VerticalAlignment="Center"
+                          FontStyle="Italic"/>
+            </Grid>
+        </Border>
+        
+        <!-- Main Content -->
+        <Grid Grid.Row="1" Margin="0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Área do Tabuleiro (Placeholder) -->
+            <Border Grid.Column="0" Background="#34495E" CornerRadius="5" Margin="0,0,5,0">
+                <TextBlock Text="Tabuleiro de Xadrez" 
+                          HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Foreground="White" FontSize="16"/>
+            </Border>
+            
+            <!-- Painel Lateral -->
+            <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                <!-- Login -->
+                <GroupBox Header="Login" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBox Text="{Binding Username}" Margin="0,0,0,5" 
+                                IsEnabled="{Binding IsConnected}"
+                                ToolTip="Nome de usuário"/>
+                        <Button Content="Login" Command="{Binding LoginCommand}"
+                                IsEnabled="{Binding IsConnected}"
+                                Padding="10,5" Background="#27AE60" Foreground="White"/>
+                    </StackPanel>
+                </GroupBox>
+                
+                <!-- Usuários Online -->
+                <GroupBox Header="Usuários Online" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <Button Grid.Row="0" Content="Atualizar" 
+                                Command="{Binding RefreshUsersCommand}"
+                                Margin="0,0,0,5"/>
+                        
+                        <ListBox Grid.Row="1" ItemsSource="{Binding OnlineUsers}"
+                                Height="200">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" Padding="5"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </GroupBox>
+            </StackPanel>
+        </Grid>
+        
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="#ECF0F1" Padding="5" CornerRadius="3">
+            <TextBlock Text="{Binding StatusMessage}" FontStyle="Italic"/>
+        </Border>
+        
+        <!-- Progress Indicator -->
+        <Border Grid.Row="0" Grid.RowSpan="3" Background="#80000000" 
+                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="200" Height="20" Margin="0,0,0,10"/>
+                <TextBlock Text="Processando..." Foreground="White" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
