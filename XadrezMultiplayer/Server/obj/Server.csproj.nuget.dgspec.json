@@ -43,9 +43,9 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
-            "System.Net.Sockets": {
+            "Microsoft.Extensions.Hosting": {
               "target": "Package",
-              "version": "[4.3.0, )"
+              "version": "[8.0.1, )"
             }
           },
           "imports": [
