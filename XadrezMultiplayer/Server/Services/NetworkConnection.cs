@@ -6,6 +6,10 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Server.Models;
+using Server.Handlers;
+using Shared;
 
 namespace Server.Services;
 
@@ -16,16 +20,17 @@ public class NetworkConnection : IDisposable
     private readonly StreamReader _reader;
     private readonly StreamWriter _writer;
     private readonly ILogger _logger;
+    private readonly int _timeoutSeconds;
 
    public NetworkConnection(TcpClient client, ILogger logger, IOptions<ServerSettings> settings)
-{
-    _client = client;
-    _logger = logger;
-    _stream = client.GetStream();
-    _reader = new StreamReader(_stream, Encoding.UTF8);
-    _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
-    _timeoutSeconds = settings.Value.ConnectionTimeout; 
-}
+    {
+        _client = client;
+        _logger = logger;
+        _stream = client.GetStream();
+        _reader = new StreamReader(_stream, Encoding.UTF8);
+        _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
+        _timeoutSeconds = settings.Value.ConnectionTimeout;
+    }
 
     public async Task<string?> ReadMessageWithTimeoutAsync(CancellationToken cancellationToken)
 {
@@ -35,7 +40,7 @@ public class NetworkConnection : IDisposable
         var timeoutTask = Task.Delay(TimeSpan.FromSeconds(_timeoutSeconds), cancellationToken);
 
         var completedTask = await Task.WhenAny(readTask, timeoutTask);
-
+        
         if (completedTask == timeoutTask)
         {
             await SendMessageAsync(new { type = "timeout_warning", message = "Conexão ociosa por muito tempo" });

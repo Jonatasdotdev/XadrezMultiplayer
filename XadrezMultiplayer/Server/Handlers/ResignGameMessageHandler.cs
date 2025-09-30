@@ -6,9 +6,9 @@ namespace Server.Handlers;
 public class ResignGameMessageHandler : IMessageHandler
 {
     public string MessageType => "resign_game";
-    private readonly ILogger _logger;
+    private readonly ILogger<ResignGameMessageHandler> _logger;
 
-    public ResignGameMessageHandler(ILogger logger)
+    public ResignGameMessageHandler(ILogger<ResignGameMessageHandler> logger)
     {
         _logger = logger;
     }

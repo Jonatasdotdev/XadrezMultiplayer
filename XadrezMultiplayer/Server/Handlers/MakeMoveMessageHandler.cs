@@ -7,9 +7,9 @@ namespace Server.Handlers;
 public class MakeMoveMessageHandler : IMessageHandler
 {
     public string MessageType => "make_move";
-    private readonly ILogger _logger;
+    private readonly ILogger<MakeMoveMessageHandler> _logger;
 
-    public MakeMoveMessageHandler(ILogger logger)
+    public MakeMoveMessageHandler(ILogger<MakeMoveMessageHandler> logger)
     {
         _logger = logger;
     }
@@ -43,7 +43,7 @@ public class MakeMoveMessageHandler : IMessageHandler
                     promotion = promotion,
                     gameState = moveResult.GameState,
                     board = clientHandler.State.CurrentGame.GetBoardState(),
-                    currentTurn = clientHandler.State.CurrentGame.CurrentTurnPlayer?.State.Username,
+                    currentTurn = (clientHandler.State.CurrentGame.CurrentTurnPlayer as ClientHandler)?.State.Username,
                     isCheck = moveResult.IsCheck,
                     isCheckmate = moveResult.IsCheckmate,
                     isDraw = moveResult.IsDraw

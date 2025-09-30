@@ -67,9 +67,13 @@
               "target": "Package",
               "version": "[8.0.0, )"
             },
+            "Microsoft.Extensions.Options": {
+              "target": "Package",
+              "version": "[9.0.9, )"
+            },
             "System.Text.Json": {
               "target": "Package",
-              "version": "[8.0.0, )"
+              "version": "[8.0.5, )"
             }
           },
           "imports": [

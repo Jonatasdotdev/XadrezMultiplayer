@@ -3,15 +3,15 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace Server.Services;
+namespace Server.Handlers;
 
 public class AcceptInviteMessageHandler : IMessageHandler
 {
     public string MessageType => "accept_invite";
     private readonly GameSessionManager _gameSessionManager;
-    private readonly ILogger _logger;
+    private readonly ILogger<AcceptInviteMessageHandler> _logger;
 
-    public AcceptInviteMessageHandler(GameSessionManager gameSessionManager, ILogger logger)
+    public AcceptInviteMessageHandler(GameSessionManager gameSessionManager, ILogger<AcceptInviteMessageHandler> logger)
     {
         _gameSessionManager = gameSessionManager;
         _logger = logger;
@@ -60,7 +60,7 @@ public class AcceptInviteMessageHandler : IMessageHandler
 
             var gameStartMessage = new {
                 type = "game_started",
-                gameId = gameSession.GameId,
+                gameId = gameSession.SessionId,
                 whitePlayer = fromClient.State.Username,
                 blackPlayer = clientHandler.State.Username,
                 board = gameSession.GetBoardState(),

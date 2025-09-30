@@ -7,9 +7,9 @@ namespace Server.Handlers;
 public class RespondDrawMessageHandler : IMessageHandler
 {
     public string MessageType => "respond_draw";
-    private readonly ILogger _logger;
+    private readonly ILogger<ResignGameMessageHandler> _logger;
 
-    public RespondDrawMessageHandler(ILogger logger)
+    public RespondDrawMessageHandler(ILogger<ResignGameMessageHandler>  logger)
     {
         _logger = logger;
     }

@@ -6,9 +6,9 @@ namespace Server.Handlers;
 public class OfferDrawMessageHandler : IMessageHandler
 {
     public string MessageType => "offer_draw";
-    private readonly ILogger _logger;
+    private readonly ILogger<OfferDrawMessageHandler> _logger;
 
-    public OfferDrawMessageHandler(ILogger logger)
+    public OfferDrawMessageHandler(ILogger<OfferDrawMessageHandler> logger)
     {
         _logger = logger;
     }

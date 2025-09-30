@@ -7,9 +7,9 @@ namespace Server.Services;
 
 public class HeartbeatManager
 {
-    private readonly ILogger _logger;
+    private readonly ILogger<HeartbeatManager> _logger;
 
-    public HeartbeatManager(ILogger logger)
+    public HeartbeatManager(ILogger<HeartbeatManager> logger)
     {
         _logger = logger;
     }

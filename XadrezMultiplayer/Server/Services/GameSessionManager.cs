@@ -1,52 +1,58 @@
 using Server.Models;
+using Server.Services;
 
-namespace Server.Services;
-
-public class GameSessionManager
+namespace Server.Services
 {
-    private readonly Dictionary<string, GameSession> _gameSessions = new();
-    private readonly Dictionary<string, GameInvite> _invites = new();
-    private readonly object _lock = new();
-
-    public GameSession CreateGameSession(ClientHandler whitePlayer, ClientHandler blackPlayer)
+    public class GameSessionManager
     {
-        lock (_lock)
+        private readonly Dictionary<string, GameSession> _gameSessions = new();
+        private readonly Dictionary<string, GameInvite> _invites = new();
+        private readonly object _lock = new();
+
+        public GameSession CreateGameSession(ClientHandler whitePlayer, ClientHandler blackPlayer)
         {
-            var gameSession = new GameSession(whitePlayer, blackPlayer);
-            _gameSessions[gameSession.GameId] = gameSession;
-            return gameSession;
+            lock (_lock)
+            {
+                var gameSession = new GameSession(whitePlayer, blackPlayer)
+                {
+                    Player2 = blackPlayer,
+                    Player2Username = blackPlayer.State?.Username ?? string.Empty
+                };
+                _gameSessions[gameSession.SessionId] = gameSession; 
+                return gameSession;
+            }
         }
-    }
 
-    public void AddInvite(GameInvite invite)
-    {
-        lock (_lock)
+        public void AddInvite(GameInvite invite)
         {
-            _invites[invite.InviteId] = invite;
+            lock (_lock)
+            {
+                _invites[invite.InviteId] = invite;
+            }
         }
-    }
 
-    public GameInvite? GetInvite(string inviteId)
-    {
-        lock (_lock)
+        public GameInvite? GetInvite(string inviteId)
         {
-            return _invites.GetValueOrDefault(inviteId);
+            lock (_lock)
+            {
+                return _invites.GetValueOrDefault(inviteId);
+            }
         }
-    }
 
-    public void RemoveInvite(string inviteId)
-    {
-        lock (_lock)
+        public void RemoveInvite(string inviteId)
         {
-            _invites.Remove(inviteId);
+            lock (_lock)
+            {
+                _invites.Remove(inviteId);
+            }
         }
-    }
 
-    public void RemoveGameSession(string gameId)
-    {
-        lock (_lock)
+        public void RemoveGameSession(string sessionId)
         {
-            _gameSessions.Remove(gameId);
+            lock (_lock)
+            {
+                _gameSessions.Remove(sessionId);
+            }
         }
     }
 }

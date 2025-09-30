@@ -3,15 +3,19 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using Server.Handlers;
+using Server.Services;
+
 
 namespace Server.Services;
 
 public class MessageProcessor
 {
     private readonly Dictionary<string, IMessageHandler> _handlers;
-    private readonly ILogger _logger;
+    private readonly ILogger<MessageProcessor> _logger;
 
-    public MessageProcessor(IEnumerable<IMessageHandler> handlers, ILogger logger)
+    public MessageProcessor(IEnumerable<IMessageHandler> handlers, ILogger<MessageProcessor>  logger)
     {
         _logger = logger;
         _handlers = new Dictionary<string, IMessageHandler>();

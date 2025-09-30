@@ -8,9 +8,9 @@ public class LoginMessageHandler : IMessageHandler
 {
     public string MessageType => "login";
     private readonly AuthService _authService;
-    private readonly ILogger _logger;
+    private readonly ILogger<LoginMessageHandler> _logger;
 
-    public LoginMessageHandler(AuthService authService, ILogger logger)
+    public LoginMessageHandler(AuthService authService, ILogger<LoginMessageHandler>logger)
     {
         _authService = authService;
         _logger = logger;

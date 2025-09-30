@@ -8,9 +8,9 @@ public class RejectInviteMessageHandler : IMessageHandler
 {
     public string MessageType => "reject_invite";
     private readonly GameSessionManager _gameSessionManager;
-    private readonly ILogger _logger;
+    private readonly ILogger<RejectInviteMessageHandler> _logger;
 
-    public RejectInviteMessageHandler(GameSessionManager gameSessionManager, ILogger logger)
+    public RejectInviteMessageHandler(GameSessionManager gameSessionManager, ILogger<RejectInviteMessageHandler> logger)
     {
         _gameSessionManager = gameSessionManager;
         _logger = logger;

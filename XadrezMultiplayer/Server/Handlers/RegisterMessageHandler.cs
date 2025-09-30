@@ -8,9 +8,9 @@ public class RegisterMessageHandler : IMessageHandler
 {
     public string MessageType => "register";
     private readonly AuthService _authService;
-    private readonly ILogger _logger;
+    private readonly ILogger<RegisterMessageHandler> _logger;
 
-    public RegisterMessageHandler(AuthService authService, ILogger logger)
+    public RegisterMessageHandler(AuthService authService, ILogger<RegisterMessageHandler> logger)
     {
         _authService = authService;
         _logger = logger;
@@ -22,7 +22,7 @@ public class RegisterMessageHandler : IMessageHandler
         {
             var username = data.GetProperty("username").GetString();
             var password = data.GetProperty("password").GetString();
-            var email = data.GetProperty("email").GetString();
+            var email = data.GetProperty("email").GetString() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {

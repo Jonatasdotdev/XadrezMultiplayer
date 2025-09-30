@@ -3,16 +3,19 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Shared;
+using Server.Services;
+using Server.Models;
+using System.Text.Json;
 
-namespace Server.Services;
+namespace Server.Handlers;
 
 public class InvitePlayerMessageHandler : IMessageHandler
 {
     public string MessageType => "invite_player";
     private readonly GameSessionManager _gameSessionManager;
-    private readonly ILogger _logger;
+    private readonly ILogger<InvitePlayerMessageHandler> _logger;
 
-    public InvitePlayerMessageHandler(GameSessionManager gameSessionManager, ILogger logger)
+    public InvitePlayerMessageHandler(GameSessionManager gameSessionManager, ILogger<InvitePlayerMessageHandler> logger)
     {
         _gameSessionManager = gameSessionManager;
         _logger = logger;
