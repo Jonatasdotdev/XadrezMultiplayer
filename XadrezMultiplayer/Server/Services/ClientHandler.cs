@@ -1,246 +1,157 @@
+using System;
+using System.Collections.Generic;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Shared;
-using Server.Models;
 
-namespace Server.Services;
-
-public class ClientHandler
+namespace Server.Services
 {
-    private readonly TcpClient _client;
-    private readonly GameServer _server;
-    private readonly ILogger _logger;
-    private NetworkStream _stream;
-    private StreamReader _reader;
-    private StreamWriter _writer;
-    
-    public string ClientId { get; private set; }
-    public string? Username { get; set; }
-    public bool IsAuthenticated { get; set; }
-    public GameSession? CurrentGame { get; set; }
-
-    public ClientHandler(TcpClient client, GameServer server, ILogger logger)
+    public class ClientHandler
     {
-        _client = client;
-        _server = server;
-        _logger = logger;
-        _stream = client.GetStream();
-        _reader = new StreamReader(_stream, Encoding.UTF8);
-        _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
-        ClientId = Guid.NewGuid().ToString();
-    }
-
-    public async Task HandleClientAsync(CancellationToken cancellationToken = default)
-    {
-        try
+        public ClientState State { get; }
+        public GameServer Server { get; }
+        private readonly NetworkConnection _connection;
+        private readonly MessageProcessor _messageProcessor;
+        private readonly HeartbeatManager _heartbeatManager;
+        private readonly ILogger<ClientHandler> _logger;
+        private readonly ILogger<MessageProcessor> _messageProcessorLogger;
+        private readonly ILogger<HeartbeatManager> _heartbeatLogger;
+        private readonly AuthService _authService;
+        private readonly GameSessionManager _gameSessionManager;
+        public ClientHandler(TcpClient client, GameServer server, ILogger<ClientHandler> logger,
+                            ILogger<MessageProcessor> messageProcessorLogger,
+                            ILogger<HeartbeatManager> heartbeatLogger,
+                            AuthService authService, GameSessionManager gameSessionManager,
+                            IOptions<ServerSettings> settings, IEnumerable<IMessageHandler> messageHandlers)
         {
-            _logger.LogInformation("Cliente conectado: {ClientId}", ClientId);
-            
-            await SendMessageAsync(new { type = "welcome", clientId = ClientId, message = "Conectado ao servidor de Xadrez" });
+            State = new ClientState();
+            Server = server;
+            _logger = logger;
+            _messageProcessorLogger = messageProcessorLogger;
+            _heartbeatLogger = heartbeatLogger;
+            _authService = authService;
+            _gameSessionManager = gameSessionManager;
+            _connection = new NetworkConnection(client, logger, settings);
+            _heartbeatManager = new HeartbeatManager(_heartbeatLogger);
+            _messageProcessor = new MessageProcessor(messageHandlers, _messageProcessorLogger);
+        }
+        
 
-            string? message;
-            while (!cancellationToken.IsCancellationRequested && 
-                   (message = await ReadMessageWithTimeoutAsync(cancellationToken)) != null)
+        public async Task HandleClientAsync(CancellationToken cancellationToken = default)
+        {
+            try
             {
-                _logger.LogDebug("Mensagem de {ClientId}: {Message}", ClientId, message);
-                await ProcessMessageAsync(message);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("Cliente {ClientId} desconectado (cancellation)", ClientId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro com cliente {ClientId}", ClientId);
-        }
-        finally
-        {
-            await HandleDisconnectionAsync();
-        }
-    }
+                _logger.LogInformation("Cliente conectado: {ClientId}", State.ClientId);
 
-    private async Task<string?> ReadMessageWithTimeoutAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            var readTask = _reader.ReadLineAsync();
-            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
-            
-            var completedTask = await Task.WhenAny(readTask, timeoutTask);
-            
-            if (completedTask == timeoutTask)
-            {
-                await SendMessageAsync(new { type = "timeout_warning" });
-                return null;
-            }
-            
-            return await readTask;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Timeout/erro na leitura do cliente {ClientId}", ClientId);
-            return null;
-        }
-    }
-
-    private async Task ProcessMessageAsync(string message)
-    {
-        try
-        {
-            using var jsonDoc = JsonDocument.Parse(message);
-            var root = jsonDoc.RootElement;
-            
-            if (!root.TryGetProperty("type", out var typeProperty))
-            {
-                await SendMessageAsync(new { type = "error", message = "Campo 'type' não encontrado" });
-                return;
-            }
-
-            var messageType = typeProperty.GetString();
-            
-            switch (messageType)
-            {
-                case "login":
-                    await HandleLoginAsync(root);
-                    break;
-                case "ping":
-                    await SendMessageAsync(new { type = "pong", timestamp = DateTime.UtcNow });
-                    break;
-                case "get_online_users":
-                    await HandleGetOnlineUsersAsync();
-                    break;
-                default:
-                    await SendMessageAsync(new { 
-                        type = "error", 
-                        message = $"Tipo de mensagem desconhecido: {messageType}" 
-                    });
-                    break;
-            }
-        }
-        catch (JsonException ex)
-        {
-            await SendMessageAsync(new { 
-                type = "error", 
-                message = "JSON inválido: " + ex.Message 
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro ao processar mensagem do cliente {ClientId}", ClientId);
-            await SendMessageAsync(new { 
-                type = "error", 
-                message = "Erro interno do servidor" 
-            });
-        }
-    }
-
-    private async Task HandleLoginAsync(JsonElement data)
-    {
-        try
-        {
-            var username = data.GetProperty("username").GetString();
-            var password = data.GetProperty("password").GetString();
-
-            if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-            {
-                await SendMessageAsync(new { 
-                    type = "login_failed", 
-                    message = "Username e password são obrigatórios" 
+                await SendMessageAsync(new
+                {
+                    type = "welcome",
+                    clientId = State.ClientId,
+                    message = "Conectado ao servidor de Xadrez",
+                    serverVersion = "1.0.0"
                 });
-                return;
+
+                _ = Task.Run(() => _heartbeatManager.RunAsync(State, _connection, State.ClientId, cancellationToken), cancellationToken);
+
+                string? message;
+                while (!cancellationToken.IsCancellationRequested &&
+                       (message = await _connection.ReadMessageWithTimeoutAsync(cancellationToken)) != null)
+                {
+                    State.LastActivity = DateTime.UtcNow;
+                    _logger.LogDebug("Mensagem de {ClientId}: {Message}", State.ClientId, message);
+                    await _messageProcessor.ProcessAsync(message, this);
+                }
             }
-
-            // TODO: Implementar validação segura com database
-            // Por enquanto, autenticação simples
-            Username = username;
-            IsAuthenticated = true;
-            
-            _logger.LogInformation("Usuário autenticado: {Username}", username);
-            
-            await SendMessageAsync(new { 
-                type = "login_success", 
-                username = username,
-                onlineUsers = _server.GetOnlineUsers()
-            });
-            
-            // Notificar outros clientes
-            _server.BroadcastMessage(JsonSerializer.Serialize(new {
-                type = "user_online",
-                username = username
-            }), this);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Erro no login do cliente {ClientId}", ClientId);
-            await SendMessageAsync(new { 
-                type = "login_failed", 
-                message = "Erro durante autenticação" 
-            });
-        }
-    }
-
-    private async Task HandleGetOnlineUsersAsync()
-    {
-        var onlineUsers = _server.GetOnlineUsers();
-        await SendMessageAsync(new {
-            type = "online_users",
-            users = onlineUsers
-        });
-    }
-
-    public async Task SendMessageAsync(object message)
-    {
-        try
-        {
-            var json = JsonSerializer.Serialize(message, new JsonSerializerOptions 
-            { 
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-            });
-            await _writer.WriteLineAsync(json);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Erro ao enviar mensagem para {ClientId}", ClientId);
-            await HandleDisconnectionAsync();
-        }
-    }
-
-    private async Task HandleDisconnectionAsync()
-    {
-        try
-        {
-            // Notificar partida atual sobre desconexão
-            if (CurrentGame != null)
+            catch (OperationCanceledException)
             {
-                // TODO: Implementar lógica de desconexão da partida
+                _logger.LogInformation("Cliente {ClientId} desconectado (cancellation)", State.ClientId);
             }
-
-            // Remover cliente do servidor
-            _server.RemoveClient(this);
-
-            // Notificar outros clientes
-            if (!string.IsNullOrEmpty(Username))
+            catch (Exception ex)
             {
-                _server.BroadcastMessage(JsonSerializer.Serialize(new {
-                    type = "user_offline",
-                    username = Username
-                }), this);
+                _logger.LogError(ex, "Erro com cliente {ClientId}", State.ClientId);
+            }
+            finally
+            {
+                await HandleDisconnectionAsync();
+            }
+        }
+
+        public async Task SendMessageAsync(object message)
+        {
+            await _connection.SendMessageAsync(message);
+        }
+
+        internal async Task HandleGameEndAsync(MoveResult moveResult)
+        {
+            if (State.CurrentGame == null) return;
+
+            var gameEndMessage = new
+            {
+                type = "game_ended",
+                reason = moveResult.IsCheckmate ? "checkmate" : "draw",
+                winner = moveResult.IsCheckmate ? State.Username : null,
+                isDraw = moveResult.IsDraw,
+                finalBoard = State.CurrentGame.GetBoardState()
+            };
+
+            await State.CurrentGame.BroadcastToPlayers(gameEndMessage);
+
+            if (moveResult.IsCheckmate)
+            {
+                await _authService.UpdatePlayerStats(State.Username!, true);
+                var opponentUsername = State.CurrentGame.GetOpponent(this)?.State.Username;
+                if (opponentUsername != null)
+                    await _authService.UpdatePlayerStats(opponentUsername, false);
             }
 
-            _logger.LogInformation("🔌 Cliente desconectado: {ClientId} ({Username})", ClientId, Username);
-
-            // Fechar conexões
-            _reader?.Dispose();
-            _writer?.Dispose();
-            _stream?.Dispose();
-            _client?.Close();
+            State.CurrentGame = null;
         }
-        catch (Exception ex)
+
+        private async Task HandleDisconnectionAsync()
         {
-            _logger.LogError(ex, "Erro durante desconexão de {ClientId}", ClientId);
+            try
+            {
+                if (State.CurrentGame != null)
+                {
+                    var opponent = State.CurrentGame.GetOpponent(this);
+                    if (opponent != null)
+                    {
+                        await opponent.SendMessageAsync(new
+                        {
+                            type = "opponent_disconnected",
+                            message = $"{State.Username} desconectou-se"
+                        });
+                    }
+
+                    State.CurrentGame.HandlePlayerDisconnect(this);
+                    State.CurrentGame = null;
+                }
+
+                Server.RemoveClient(this);
+
+                if (!string.IsNullOrEmpty(State.Username))
+                {
+                    Server.BroadcastMessage(JsonSerializer.Serialize(new
+                    {
+                        type = "user_offline",
+                        username = State.Username
+                    }), this);
+                }
+
+                _logger.LogInformation("Cliente desconectado: {ClientId} ({Username})", State.ClientId, State.Username);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro durante desconexão de {ClientId}", State.ClientId);
+            }
+            finally
+            {
+                _connection.Dispose();
+            }
         }
     }
 }
