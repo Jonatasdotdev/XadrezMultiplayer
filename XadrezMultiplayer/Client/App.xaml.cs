@@ -2,46 +2,53 @@
 using Microsoft.Extensions.Hosting;
 using System.Windows;
 using Client.Services;
+using CommunityToolkit.Mvvm.Messaging;
+using Client.Models;
 using Client.ViewModels;
 
-namespace Client;
-
-public partial class App : Application
+namespace Client
 {
-    private IHost? _host;
-
-    protected override async void OnStartup(StartupEventArgs e)
+    public partial class App : Application
     {
-        _host = Host.CreateDefaultBuilder()
-            .ConfigureServices(services =>
-            {
-                services.AddSingleton<NetworkClient>();
-                services.AddSingleton<GameService>();
-                services.AddTransient<MainViewModel>();
-                services.AddSingleton<MainWindow>();
-            })
-            .Build();
+        private IHost? _host;
 
-        await _host.StartAsync();
-
-        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-        mainWindow.Show();
-
-        base.OnStartup(e);
-    }
-
-    protected override async void OnExit(ExitEventArgs e)
-    {
-        if (_host != null)
+        public App()
         {
-            // Desconectar do servidor
-            var networkClient = _host.Services.GetRequiredService<NetworkClient>();
-            networkClient.Disconnect();
-            
-            await _host.StopAsync(TimeSpan.FromSeconds(5));
-            _host.Dispose();
+            Startup += App_Startup;
         }
 
-        base.OnExit(e);
+        private void App_Startup(object sender, StartupEventArgs e)
+        {
+            _host = Host.CreateDefaultBuilder()
+                .ConfigureServices((context, services) =>
+                {
+                    services.AddSingleton<IMessenger>(WeakReferenceMessenger.Default);
+                    services.AddSingleton<INetworkClient, NetworkClient>();
+                    services.Configure<NetworkSettings>(settings =>
+                    {
+                        settings.DefaultIp = "127.0.0.1";
+                        settings.DefaultPort = 5000;
+                    });
+
+                    // Register ViewModels
+                    services.AddTransient<MainViewModel>();
+                    services.AddTransient<GameViewModel>();
+                    services.AddTransient<LoginViewModel>();
+                })
+                .Build();
+
+            _host.Start();
+
+            // Expor os serviços via Application.Current
+            Current.Properties["Host"] = _host;
+        }
+
+        public static IServiceProvider Services => (Current.Properties["Host"] as IHost)?.Services ?? throw new InvalidOperationException("Host não inicializado");
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            _host?.Dispose();
+            base.OnExit(e);
+        }
     }
 }

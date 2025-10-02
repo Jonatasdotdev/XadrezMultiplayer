@@ -1,242 +1,176 @@
+using CommunityToolkit.Mvvm.Messaging;
+using Microsoft.Extensions.Options;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.Json;
-using CommunityToolkit.Mvvm.Messaging;
+using System.Threading;
+using System.Threading.Tasks;
+using Shared.Messages;
 using Client.Messages;
+using Client.Models;
+using Shared;
 
-namespace Client.Services;
 
-public class NetworkClient : IDisposable
+namespace Client.Services
 {
-    private TcpClient _tcpClient;
-    private NetworkStream? _stream;
-    private StreamReader? _reader;
-    private StreamWriter? _writer;
-    private CancellationTokenSource _cancellationTokenSource;
-    private bool _isConnected = false;
-
-    public bool IsConnected => _isConnected && _tcpClient?.Connected == true;
-    public string? ClientId { get; private set; }
-    public string? Username { get; private set; }
-
-    public NetworkClient()
+    public interface INetworkClient
     {
-        _tcpClient = new TcpClient();
-        _cancellationTokenSource = new CancellationTokenSource();
+        bool IsConnected { get; }
+    Task ConnectAsync(string ip, int port);
+    Task DisconnectAsync();
+    Task SendMessageAsync<T>(T message) where T : MessageBase;
     }
 
-    public async Task<bool> ConnectAsync(string ip, int port)
+    public class NetworkClient : INetworkClient, IAsyncDisposable
     {
-        try
-        {
-            await _tcpClient.ConnectAsync(ip, port);
-            _stream = _tcpClient.GetStream();
-            _reader = new StreamReader(_stream, Encoding.UTF8);
-            _writer = new StreamWriter(_stream, Encoding.UTF8) { AutoFlush = true };
-            
-            _isConnected = true;
-            
-            // Iniciar escuta de mensagens
-            _ = Task.Run(StartListeningAsync);
-            
-            return true;
-        }
-        catch (Exception ex)
-        {
-            WeakReferenceMessenger.Default.Send(new ErrorMessage($"Falha na conexão: {ex.Message}"));
-            return false;
-        }
-    }
+        private readonly IMessenger _messenger;
+        private readonly NetworkSettings _settings;
+        private TcpClient? _client;
+        private NetworkStream? _stream;
+        private CancellationTokenSource? _cts;
+        private bool _isReconnecting;
+        private Task? _receiveTask;
 
-    private async Task StartListeningAsync()
-    {
-        while (!_cancellationTokenSource.Token.IsCancellationRequested && IsConnected)
+        public bool IsConnected => _client?.Connected ?? false;
+
+        public NetworkClient(IMessenger messenger, IOptions<NetworkSettings> settings)
         {
+            _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+            _settings = settings?.Value ?? throw new ArgumentNullException(nameof(settings));
+        }
+
+        public async Task ConnectAsync(string ip, int port)
+        {
+            if (IsConnected) return;
+
+            _cts = new CancellationTokenSource();
+            var attempts = 0;
+
+            while (attempts < _settings.ReconnectAttempts && !_isReconnecting)
+            {
+                try
+                {
+                    _client = new TcpClient();
+                    await _client.ConnectAsync(ip, port, _cts.Token);
+                    _stream = _client.GetStream();
+                    _isReconnecting = false;
+                    _receiveTask = StartReceivingAsync(_cts.Token);
+                    await StartHeartbeatAsync(_cts.Token);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    attempts++;
+                    if (attempts == _settings.ReconnectAttempts)
+                    {
+                        _messenger.Send(new ErrorMessage($"Falha ao conectar: {ex.Message}"));
+                        throw;
+                    }
+                    await Task.Delay(_settings.ReconnectDelay, _cts.Token);
+                }
+            }
+        }
+
+        public async Task DisconnectAsync()
+        {
+            _cts?.Cancel();
+            _isReconnecting = false;
+
+            if (_stream != null)
+            {
+                await _stream.DisposeAsync();
+                _stream = null;
+            }
+
+            _client?.Close();
+            _client = null;
+            _receiveTask = null;
+        }
+
+        public async Task SendMessageAsync<T>(T message) where T : MessageBase
+        {
+            if (!IsConnected || _stream == null) throw new InvalidOperationException("Não conectado ao servidor.");
+
+            var json = message.Serialize();
+            var bytes = Encoding.UTF8.GetBytes(json + "\n");
+            await _stream.WriteAsync(bytes, 0, bytes.Length, _cts?.Token ?? CancellationToken.None);
+        }
+
+        private async Task StartReceivingAsync(CancellationToken cancellationToken)
+        {
+            var buffer = new byte[1024];
             try
             {
-                var message = await _reader!.ReadLineAsync();
-                if (message != null)
+                while (!cancellationToken.IsCancellationRequested && _client?.Connected == true)
                 {
-                    await ProcessIncomingMessageAsync(message);
+                    var bytesRead = await _stream!.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
+                    if (bytesRead == 0) break; // Conexão fechada pelo servidor
+
+                    var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                    ProcessMessage(message);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancelamento normal
             }
             catch (Exception ex)
             {
-                if (!_cancellationTokenSource.Token.IsCancellationRequested)
-                {
-                    WeakReferenceMessenger.Default.Send(new ErrorMessage($"Erro na conexão: {ex.Message}"));
-                    Disconnect();
-                }
-                break;
+                _messenger.Send(new ErrorMessage($"Erro na recepção: {ex.Message}"));
+                if (!_isReconnecting) await AttemptReconnectAsync();
             }
         }
-    }
 
-    private async Task ProcessIncomingMessageAsync(string message)
-    {
-        try
+        private void ProcessMessage(string message)
         {
-            using var jsonDoc = JsonDocument.Parse(message);
-            var root = jsonDoc.RootElement;
-            var messageType = root.GetProperty("type").GetString();
-
-            switch (messageType)
+            //Processar diferentes tipos de mensagens
+            var response = MessageBase.Deserialize<LoginResponse>(message);
+            if (response?.Type == MessageTypes.LoginResponse && response.Success)
             {
-                case "welcome":
-                    HandleWelcomeMessage(root);
-                    break;
-                case "login_success":
-                    await HandleLoginSuccessAsync(root);
-                    break;
-                case "login_failed":
-                    HandleLoginFailed(root);
-                    break;
-                case "online_users":
-                    HandleOnlineUsers(root);
-                    break;
-                case "user_online":
-                    HandleUserOnline(root);
-                    break;
-                case "user_offline":
-                    HandleUserOffline(root);
-                    break;
-                case "pong":
-                    HandlePong(root);
-                    break;
-                case "error":
-                    HandleErrorMessage(root);
-                    break;
-                default:
-                    Console.WriteLine($"Mensagem não tratada: {messageType}");
-                    break;
+                _messenger.Send(new LoginSuccessMessage(response.Username ?? string.Empty));
+            }
+            else if (MessageBase.Deserialize<GetOnlineUsersResponse>(message) is GetOnlineUsersResponse usersResponse)
+            {
+                _messenger.Send(new OnlineUsersMessage(usersResponse.Users));
+            }
+            // Adicionar mais casos conforme necessário (MoveResponse, InviteResponse)
+        }
+
+        private async Task StartHeartbeatAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested && IsConnected)
+            {
+                await Task.Delay(_settings.HeartbeatInterval, cancellationToken);
+                if (IsConnected)
+                {
+                    await SendMessageAsync(new PingRequest());
+                }
             }
         }
-        catch (Exception ex)
+
+        private async Task AttemptReconnectAsync()
         {
-            WeakReferenceMessenger.Default.Send(new ErrorMessage($"Erro ao processar mensagem: {ex.Message}"));
-        }
-    }
+            if (_isReconnecting || _cts?.IsCancellationRequested == true) return;
 
-    private void HandleWelcomeMessage(JsonElement root)
-    {
-        ClientId = root.GetProperty("clientId").GetString();
-        WeakReferenceMessenger.Default.Send(new StatusMessage("Conectado ao servidor!"));
-    }
+            _isReconnecting = true;
+            _messenger.Send(new StatusMessage("Tentando reconectar..."));
+            await Task.Delay(_settings.ReconnectDelay);
 
-    private async Task HandleLoginSuccessAsync(JsonElement root)
-    {
-        Username = root.GetProperty("username").GetString();
-        
-        if (root.TryGetProperty("onlineUsers", out var usersElement))
-        {
-            var onlineUsers = usersElement.EnumerateArray().Select(u => u.GetString()!).ToList();
-            WeakReferenceMessenger.Default.Send(new OnlineUsersMessage(onlineUsers));
-        }
-        
-        WeakReferenceMessenger.Default.Send(new LoginSuccessMessage(Username!));
-        WeakReferenceMessenger.Default.Send(new StatusMessage($"Logado como: {Username}"));
-    }
-
-    private void HandleLoginFailed(JsonElement root)
-    {
-        var errorMessage = root.GetProperty("message").GetString();
-        WeakReferenceMessenger.Default.Send(new ErrorMessage($"Falha no login: {errorMessage}"));
-    }
-
-    private void HandleOnlineUsers(JsonElement root)
-    {
-        var users = root.GetProperty("users").EnumerateArray().Select(u => u.GetString()!).ToList();
-        WeakReferenceMessenger.Default.Send(new OnlineUsersMessage(users));
-    }
-
-    private void HandleUserOnline(JsonElement root)
-    {
-        var username = root.GetProperty("username").GetString();
-        WeakReferenceMessenger.Default.Send(new UserStatusMessage(username!, true));
-    }
-
-    private void HandleUserOffline(JsonElement root)
-    {
-        var username = root.GetProperty("username").GetString();
-        WeakReferenceMessenger.Default.Send(new UserStatusMessage(username!, false));
-    }
-
-    private void HandlePong(JsonElement root)
-    {
-        // Opcional: implementar health check
-    }
-
-    private void HandleErrorMessage(JsonElement root)
-    {
-        var errorMessage = root.GetProperty("message").GetString();
-        WeakReferenceMessenger.Default.Send(new ErrorMessage($"Erro do servidor: {errorMessage}"));
-    }
-
-    public async Task SendAsync(object message)
-    {
-        if (!IsConnected)
-        {
-            throw new InvalidOperationException("Cliente não conectado");
+            try
+            {
+                await ConnectAsync(_settings.DefaultIp, _settings.DefaultPort);
+                _messenger.Send(new StatusMessage("Reconectado com sucesso!"));
+            }
+            catch
+            {
+                _messenger.Send(new ErrorMessage("Falha na reconexão."));
+                _isReconnecting = false;
+            }
         }
 
-        try
+        public async ValueTask DisposeAsync()
         {
-            var json = JsonSerializer.Serialize(message, new JsonSerializerOptions 
-            { 
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
-            });
-            await _writer!.WriteLineAsync(json);
+            await DisconnectAsync();
+            _cts?.Dispose();
         }
-        catch (Exception ex)
-        {
-            WeakReferenceMessenger.Default.Send(new ErrorMessage($"Erro ao enviar mensagem: {ex.Message}"));
-            Disconnect();
-        }
-    }
-
-    public async Task LoginAsync(string username, string password)
-    {
-        await SendAsync(new 
-        {
-            type = "login",
-            username = username,
-            password = password
-        });
-    }
-
-    public async Task RequestOnlineUsersAsync()
-    {
-        await SendAsync(new 
-        {
-            type = "get_online_users"
-        });
-    }
-
-    public async Task SendPingAsync()
-    {
-        await SendAsync(new 
-        {
-            type = "ping"
-        });
-    }
-
-    public void Disconnect()
-    {
-        _cancellationTokenSource.Cancel();
-        
-        _reader?.Dispose();
-        _writer?.Dispose();
-        _stream?.Dispose();
-        _tcpClient?.Close();
-        
-        _isConnected = false;
-        
-        WeakReferenceMessenger.Default.Send(new StatusMessage("Desconectado do servidor"));
-    }
-
-    public void Dispose()
-    {
-        Disconnect();
-        _cancellationTokenSource.Dispose();
     }
 }

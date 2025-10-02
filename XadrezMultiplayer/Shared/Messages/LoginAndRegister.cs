@@ -12,6 +12,9 @@ namespace Shared.Messages
         public LoginResponse() => Type = "login_response";
         public bool Success { get; set; }
         public string? Error { get; set; }
+        public string? Username { get; set; }
+
+       
     }
 
     public class RegisterRequest : MessageBase

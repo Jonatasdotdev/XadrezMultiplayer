@@ -2,7 +2,7 @@ namespace Shared;
 
 public static class MessageTypes
 {
- public const string Login = "login";
+        public const string Login = "login";
         public const string LoginResponse = "login_response";
         public const string Register = "register";
         public const string RegisterResponse = "register_response";
@@ -14,4 +14,11 @@ public static class MessageTypes
         public const string DrawResponse = "draw_response";
         public const string Resign = "resign";
         public const string Error = "error";
+
+        public const string Ping = "ping";
+
+        public const string PingResponse = "ping_response";
+
+        public const string GetOlineUsersRequest = "get_online_users";
+        public const string GetOnlineUsersResponse = "get_online_users_response";
 }
