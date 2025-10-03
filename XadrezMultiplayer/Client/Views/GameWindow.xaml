@@ -1,0 +1,18 @@
+<Window x:Class="Client.Views.GameWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Jogo de Xadrez" Height="400" Width="400">
+    <Grid>
+    <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+    </Grid.RowDefinitions>
+
+    <TextBox Grid.Row="0" Text="{Binding BoardState, UpdateSourceTrigger=PropertyChanged}" 
+             Height="300" Width="300"/>
+    <Button Grid.Row="1" Content="Fazer Movimento" 
+            Command="{Binding MakeMoveCommand}" 
+            CommandParameter="{Binding BoardState}"/>
+</Grid>
+
+</Window>

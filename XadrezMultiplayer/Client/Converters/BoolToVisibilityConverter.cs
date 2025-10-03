@@ -30,15 +30,3 @@ public class InverseBoolConverter : IValueConverter
     }
 }
 
-public class ConnectionButtonConverter : IValueConverter
-{
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        return value is bool boolValue && boolValue ? "Conectado" : "Conectar";
-    }
-
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-    {
-        throw new NotImplementedException();
-    }
-}
