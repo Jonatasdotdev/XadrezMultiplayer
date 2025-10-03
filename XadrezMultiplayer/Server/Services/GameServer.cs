@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net;
@@ -36,9 +37,8 @@ namespace Server.Services
                 try
                 {
                     var client = await _listener.AcceptTcpClientAsync(cancellationToken);
-                    var handler = _serviceProvider.GetRequiredService<ClientHandler>();
 
-                    // Resolver dependências manualmente para passar o TcpClient e o GameServer
+                    // Resolver todas as dependências via IServiceProvider
                     var logger = _serviceProvider.GetRequiredService<ILogger<ClientHandler>>();
                     var messageProcessorLogger = _serviceProvider.GetRequiredService<ILogger<MessageProcessor>>();
                     var heartbeatLogger = _serviceProvider.GetRequiredService<ILogger<HeartbeatManager>>();
@@ -47,15 +47,16 @@ namespace Server.Services
                     var settings = _serviceProvider.GetRequiredService<IOptions<ServerSettings>>();
                     var messageHandlers = _serviceProvider.GetServices<IMessageHandler>();
 
-                    // Criar instância de ClientHandler com os parâmetros necessários
-                    var constructedHandler = new ClientHandler(client, this, logger, messageProcessorLogger, heartbeatLogger, authService, gameSessionManager, settings, messageHandlers);
+                    // Instanciar ClientHandler manualmente, passando todos os parâmetros
+                    var handler = new ClientHandler(client, this, logger, messageProcessorLogger, heartbeatLogger,
+                                                  authService, gameSessionManager, settings, messageHandlers);
 
                     lock (_clientsLock)
                     {
-                        _clients.Add(constructedHandler);
+                        _clients.Add(handler);
                     }
 
-                    _ = Task.Run(() => constructedHandler.HandleClientAsync(cancellationToken), cancellationToken);
+                    _ = Task.Run(() => handler.HandleClientAsync(cancellationToken), cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -79,22 +80,19 @@ namespace Server.Services
                 clientsCopy = new List<ClientHandler>(_clients);
             }
 
-            foreach (var client in clientsCopy.Where(c => c.State.IsAuthenticated))
+            foreach (var client in clientsCopy.Where(c => c != excludeClient && c.State.IsAuthenticated))
             {
-                if (client != excludeClient)
+                _ = Task.Run(async () =>
                 {
-                    _ = Task.Run(async () =>
+                    try
                     {
-                        try
-                        {
-                            await client.SendMessageAsync(message);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Erro no broadcast para {Username} às {Time}", client.State.Username, DateTime.Now.ToString("HH:mm:ss"));
-                        }
-                    });
-                }
+                        await client.SendMessageAsync(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Erro no broadcast para {Username} às {Time}", client.State.Username, DateTime.Now.ToString("HH:mm:ss"));
+                    }
+                });
             }
         }
 

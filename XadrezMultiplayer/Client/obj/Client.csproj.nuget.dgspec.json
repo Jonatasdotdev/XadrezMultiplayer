@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\client\\Client.csproj": {}
+    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\Client.csproj": {}
   },
   "projects": {
-    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\client\\Client.csproj": {
+    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\Client.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\client\\Client.csproj",
+        "projectUniqueName": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\Client.csproj",
         "projectName": "Client",
-        "projectPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\client\\Client.csproj",
+        "projectPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\Client.csproj",
         "packagesPath": "C:\\Users\\winte\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\client\\obj\\",
+        "outputPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\winte\\AppData\\Roaming\\NuGet\\NuGet.Config"
