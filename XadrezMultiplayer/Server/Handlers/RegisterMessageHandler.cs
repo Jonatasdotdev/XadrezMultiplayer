@@ -20,9 +20,14 @@ public class RegisterMessageHandler : IMessageHandler
     {
         try
         {
-            var username = data.GetProperty("username").GetString();
-            var password = data.GetProperty("password").GetString();
-            var email = data.GetProperty("email").GetString() ?? string.Empty;
+            JsonElement userData = data;
+
+            if (data.TryGetProperty("data", out var nestedData))
+                userData = nestedData;
+
+            var username = userData.GetProperty("username").GetString();
+            var password = userData.GetProperty("password").GetString();
+            var email = userData.TryGetProperty("email", out var emailProp) ? emailProp.GetString() ?? string.Empty : string.Empty;
 
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {

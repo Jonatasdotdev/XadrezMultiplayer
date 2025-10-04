@@ -1759,19 +1759,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\winte\\.nuget\\packages\\": {}
+    "/home/bruno/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\Client.csproj",
+      "projectUniqueName": "/home/bruno/Documents/ESTUDOS/JALA/Redes II/ProjetoFinal/XadrezMultiplayer/Client/Client.csproj",
       "projectName": "Client",
-      "projectPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\Client.csproj",
-      "packagesPath": "C:\\Users\\winte\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Client\\obj\\",
+      "projectPath": "/home/bruno/Documents/ESTUDOS/JALA/Redes II/ProjetoFinal/XadrezMultiplayer/Client/Client.csproj",
+      "packagesPath": "/home/bruno/.nuget/packages/",
+      "outputPath": "/home/bruno/Documents/ESTUDOS/JALA/Redes II/ProjetoFinal/XadrezMultiplayer/Client/obj/",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\winte\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "/home/bruno/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0-windows"
@@ -1783,8 +1783,8 @@
         "net8.0-windows7.0": {
           "targetAlias": "net8.0-windows",
           "projectReferences": {
-            "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Shared\\Shared.csproj": {
-              "projectPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Shared\\Shared.csproj"
+            "/home/bruno/Documents/ESTUDOS/JALA/Redes II/ProjetoFinal/XadrezMultiplayer/Shared/Shared.csproj": {
+              "projectPath": "/home/bruno/Documents/ESTUDOS/JALA/Redes II/ProjetoFinal/XadrezMultiplayer/Shared/Shared.csproj"
             }
           }
         }
@@ -1793,11 +1793,6 @@
         "warnAsError": [
           "NU1605"
         ]
-      },
-      "restoreAuditProperties": {
-        "enableAudit": "true",
-        "auditLevel": "low",
-        "auditMode": "direct"
       }
     },
     "frameworks": {
@@ -1839,12 +1834,9 @@
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
-          },
-          "Microsoft.WindowsDesktop.App.WPF": {
-            "privateAssets": "none"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.407/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/8.0.118/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

@@ -58,6 +58,8 @@ namespace Server
             builder.Services.AddTransient<IMessageHandler, ResignGameMessageHandler>();
             builder.Services.AddTransient<IMessageHandler, OfferDrawMessageHandler>();
             builder.Services.AddTransient<IMessageHandler, RespondDrawMessageHandler>();
+            
+            //builder.Services.AddTransient<ClientHandler>();
 
             // Registrar serviço hospedado para iniciar o GameServer
             builder.Services.AddHostedService(provider =>

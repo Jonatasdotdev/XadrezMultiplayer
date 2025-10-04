@@ -36,7 +36,7 @@ namespace Server.Services
                 try
                 {
                     var client = await _listener.AcceptTcpClientAsync(cancellationToken);
-                    var handler = _serviceProvider.GetRequiredService<ClientHandler>();
+                    //var handler = _serviceProvider.GetRequiredService<ClientHandler>();
 
                     // Resolver dependências manualmente para passar o TcpClient e o GameServer
                     var logger = _serviceProvider.GetRequiredService<ILogger<ClientHandler>>();
