@@ -38,18 +38,20 @@ namespace Server.Services
                 {
                     var client = await _listener.AcceptTcpClientAsync(cancellationToken);
 
-                    // Resolver todas as dependências via IServiceProvider
-                    var logger = _serviceProvider.GetRequiredService<ILogger<ClientHandler>>();
-                    var messageProcessorLogger = _serviceProvider.GetRequiredService<ILogger<MessageProcessor>>();
-                    var heartbeatLogger = _serviceProvider.GetRequiredService<ILogger<HeartbeatManager>>();
-                    var authService = _serviceProvider.GetRequiredService<AuthService>();
-                    var gameSessionManager = _serviceProvider.GetRequiredService<GameSessionManager>();
-                    var settings = _serviceProvider.GetRequiredService<IOptions<ServerSettings>>();
-                    var messageHandlers = _serviceProvider.GetServices<IMessageHandler>();
+                    // Resolver dependências via DI
+                    using var scope = _serviceProvider.CreateScope();
+                    var scopeProvider = scope.ServiceProvider;
 
-                    // Instanciar ClientHandler manualmente, passando todos os parâmetros
-                    var handler = new ClientHandler(client, this, logger, messageProcessorLogger, heartbeatLogger,
-                                                  authService, gameSessionManager, settings, messageHandlers);
+                    var logger = scopeProvider.GetRequiredService<ILogger<ClientHandler>>();
+                    var messageProcessorLogger = scopeProvider.GetRequiredService<ILogger<MessageProcessor>>();
+                    var heartbeatLogger = scopeProvider.GetRequiredService<ILogger<HeartbeatManager>>();
+                    var authService = scopeProvider.GetRequiredService<AuthService>();
+                    var gameSessionManager = scopeProvider.GetRequiredService<GameSessionManager>();
+                    var settings = scopeProvider.GetRequiredService<IOptions<ServerSettings>>();
+                    var messageHandlers = scopeProvider.GetServices<IMessageHandler>();
+
+                    // Instanciar ClientHandler manualmente com o TcpClient e as dependências resolvidas
+                    var handler = new ClientHandler(client, this, logger, messageProcessorLogger, heartbeatLogger, authService, gameSessionManager, settings, messageHandlers);
 
                     lock (_clientsLock)
                     {
