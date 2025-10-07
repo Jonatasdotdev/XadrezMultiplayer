@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "5R4K2Y1QS5w=",
+  "dgSpecHash": "evWCdm8i188=",
   "success": true,
-  "projectFilePath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Server\\Server.csproj",
+  "projectFilePath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\server\\Server.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\winte\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\winte\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\winte\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\7.0.0\\microsoft.bcl.asyncinterfaces.7.0.0.nupkg.sha512",
     "C:\\Users\\winte\\.nuget\\packages\\microsoft.build.framework\\17.8.3\\microsoft.build.framework.17.8.3.nupkg.sha512",

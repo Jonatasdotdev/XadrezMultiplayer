@@ -3,52 +3,73 @@ using Server.Models;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using BCrypt.Net;
+using static BCrypt.Net.BCrypt;
 
 namespace Server.Services
 {
     public class AuthService
     {
         private readonly ChessDbContext _context;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(ChessDbContext context)
+        public AuthService(ChessDbContext context, ILogger<AuthService> logger)
         {
-            _context = context;
+            _context = context ?? throw new ArgumentNullException(nameof(context));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<AuthResult> AuthenticateUserAsync(string username, string password)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
-            if (user != null && VerifyPassword(password, user.PasswordHash, user.Salt))
+            if (user != null && VerifyPassword(password, user.PasswordHash))
             {
-                user.CreatedAt = DateTime.UtcNow; // Atualiza último login
+                user.CreatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
+                _logger.LogInformation("Usuário {Username} autenticado com sucesso", username);
                 return AuthResult.Success();
             }
+            _logger.LogWarning("Falha na autenticação para {Username}", username);
             return AuthResult.Failure("Credenciais inválidas");
         }
 
         public async Task<AuthResult> RegisterUserAsync(string username, string password, string email)
         {
-            if (await _context.Users.AnyAsync(u => u.Username == username))
-                return AuthResult.Failure("Usuário já existe");
-
-            var salt = GenerateSalt();
-            var passwordHash = HashPassword(password, salt);
-
-            var user = new User
+            try
             {
-                Username = username,
-                PasswordHash = passwordHash,
-                Salt = salt,
-                Email = email,
-                CreatedAt = DateTime.UtcNow,
-                GamesWon = 0,
-                GamesLost = 0
-            };
+                if (await _context.Users.AnyAsync(u => u.Username == username))
+                {
+                    _logger.LogWarning("Tentativa de registro com username existente: {Username}", username);
+                    return AuthResult.Failure("Usuário já existe");
+                }
 
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync();
-            return AuthResult.Success();
+                if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(email))
+                {
+                    return AuthResult.Failure("Password e email são obrigatórios");
+                }
+
+                var passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
+                var user = new User
+                {
+                    Username = username,
+                    PasswordHash = passwordHash,
+                    Salt = string.Empty, // BCrypt gerencia o salt internamente
+                    Email = email,
+                    CreatedAt = DateTime.UtcNow,
+                    GamesWon = 0,
+                    GamesLost = 0
+                };
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Usuário {Username} registrado com sucesso", username);
+                return AuthResult.Success();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao registrar usuário {Username}", username);
+                return AuthResult.Failure("Erro durante registro");
+            }
         }
 
         public async Task UpdatePlayerStats(string username, bool won)
@@ -62,28 +83,9 @@ namespace Server.Services
             }
         }
 
-        private string HashPassword(string password, string salt)
+        private bool VerifyPassword(string password, string storedHash)
         {
-            using var sha256 = SHA256.Create();
-            var saltedPassword = password + salt;
-            var bytes = Encoding.UTF8.GetBytes(saltedPassword);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
-        }
-
-        private string GenerateSalt()
-        {
-            var bytes = new byte[16];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(bytes);
-            return Convert.ToBase64String(bytes);
-        }
-
-        private bool VerifyPassword(string password, string storedHash, string salt)
-        {
-            var computedHash = HashPassword(password, salt);
-            return storedHash == computedHash;
-        }
+            return BCrypt.Net.BCrypt.Verify(password, storedHash);
     }
 }
 
@@ -94,4 +96,4 @@ public class AuthResult
 
     public static AuthResult Success() => new() { IsSuccess = true };
     public static AuthResult Failure(string error) => new() { IsSuccess = false, ErrorMessage = error };
-}
+}}

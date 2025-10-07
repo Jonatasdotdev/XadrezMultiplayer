@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Server\\Server.csproj": {}
+    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\server\\Server.csproj": {}
   },
   "projects": {
-    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Server\\Server.csproj": {
+    "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\server\\Server.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Server\\Server.csproj",
+        "projectUniqueName": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\server\\Server.csproj",
         "projectName": "Server",
-        "projectPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Server\\Server.csproj",
+        "projectPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\server\\Server.csproj",
         "packagesPath": "C:\\Users\\winte\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\Server\\obj\\",
+        "outputPath": "C:\\Users\\winte\\OneDrive\\Documentos\\Networks2Project\\XadrezMultiplayer\\server\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\winte\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -47,6 +47,10 @@
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.0.3, )"
+            },
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",
               "version": "[9.0.9, )"
