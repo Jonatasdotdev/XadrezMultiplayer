@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net;
@@ -81,22 +82,19 @@ namespace Server.Services
                 clientsCopy = new List<ClientHandler>(_clients);
             }
 
-            foreach (var client in clientsCopy.Where(c => c.State.IsAuthenticated))
+            foreach (var client in clientsCopy.Where(c => c != excludeClient && c.State.IsAuthenticated))
             {
-                if (client != excludeClient)
+                _ = Task.Run(async () =>
                 {
-                    _ = Task.Run(async () =>
+                    try
                     {
-                        try
-                        {
-                            await client.SendMessageAsync(message);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Erro no broadcast para {Username} às {Time}", client.State.Username, DateTime.Now.ToString("HH:mm:ss"));
-                        }
-                    });
-                }
+                        await client.SendMessageAsync(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Erro no broadcast para {Username} às {Time}", client.State.Username, DateTime.Now.ToString("HH:mm:ss"));
+                    }
+                });
             }
         }
 
