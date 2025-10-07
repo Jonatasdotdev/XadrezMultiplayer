@@ -29,9 +29,9 @@ namespace Server
             builder.Services.Configure<ServerSettings>(
                 builder.Configuration.GetSection("ServerSettings"));
 
-            builder.Services.AddSingleton<AuthService>();
-            builder.Services.AddSingleton<GameSessionManager>();
-            builder.Services.AddSingleton<GameServer>();
+            builder.Services.AddScoped<AuthService>();
+            builder.Services.AddScoped<GameSessionManager>();
+            builder.Services.AddScoped<GameServer>();
 
             builder.Services.AddTransient<ClientState>();
             builder.Services.AddTransient<HeartbeatManager>();
@@ -54,26 +54,31 @@ namespace Server
 
             builder.Services.AddHostedService(provider =>
             {
-                var gameServer = provider.GetRequiredService<GameServer>();
-                return new GameServerHostedService(gameServer,
-                    provider.GetRequiredService<ILogger<GameServerHostedService>>());
+                var scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
+                var scope = scopeFactory.CreateScope();
+                var gameServer = scope.ServiceProvider.GetRequiredService<GameServer>();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<GameServerHostedService>>();
+                return new GameServerHostedService(gameServer, logger, scope);
             });
 
             var host = builder.Build();
             await host.RunAsync();
         }
 
-        // Implementação personalizada de IHostedService para iniciar o GameServer
-        public class GameServerHostedService : BackgroundService
+        // Implementação personalizada do IHostedService para rodar o GameServer
+        public class GameServerHostedService : BackgroundService, IDisposable
         {
             private readonly GameServer _gameServer;
             private readonly ILogger<GameServerHostedService> _logger;
+            private readonly IServiceScope _scope;
             private readonly CancellationTokenSource _cts = new();
 
-            public GameServerHostedService(GameServer gameServer, ILogger<GameServerHostedService> logger)
+            public GameServerHostedService(GameServer gameServer, ILogger<GameServerHostedService> logger,
+                IServiceScope scope)
             {
                 _gameServer = gameServer ?? throw new ArgumentNullException(nameof(gameServer));
                 _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+                _scope = scope ?? throw new ArgumentNullException(nameof(scope));
             }
 
             protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -94,6 +99,12 @@ namespace Server
                 _logger.LogInformation("Parando GameServer às {Time}", DateTime.Now.ToString("HH:mm:ss"));
                 _cts.Cancel();
                 await base.StopAsync(cancellationToken);
+            }
+
+            public void Dispose()
+            {
+                _scope.Dispose();
+                _cts.Dispose();
             }
         }
     }

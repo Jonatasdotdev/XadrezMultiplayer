@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 
 namespace Server.Models
 {
@@ -10,16 +9,8 @@ namespace Server.Models
         public DbSet<Game> Games { get; set; }
         public DbSet<Log> Logs { get; set; }
 
-        private readonly IConfiguration _configuration;
-
-        public ChessDbContext(IConfiguration configuration)
+        public ChessDbContext(DbContextOptions<ChessDbContext> options) : base(options)
         {
-            _configuration = configuration;
-        }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.UseNpgsql(_configuration.GetConnectionString("DefaultConnection"));
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
