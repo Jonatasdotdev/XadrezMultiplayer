@@ -3,118 +3,453 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Client.ViewModels"
         Title="Xadrez Multiplayer" 
-        Height="600" 
-        Width="800"
-        WindowStartupLocation="CenterScreen">
+        Height="700" 
+        Width="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="#1E1E1E">
     
-    
-    
-    <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Window.Resources>
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="#3498DB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                CornerRadius="5" 
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2980B9"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#7F8C8D"/>
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         
-        <!-- Header -->
-        <Border Grid.Row="0" Background="#2C3E50" Padding="10" CornerRadius="5">
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Background" Value="#34495E"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#2C3E50"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" 
+                                        Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#3498DB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    
+    <ScrollViewer VerticalScrollBarVisibility="Hidden" 
+                  HorizontalScrollBarVisibility="Hidden">
+        <Grid Margin="15">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <!-- Header -->
+        <Border Grid.Row="0" Background="#2C3E50" Padding="15" CornerRadius="8" 
+                Effect="{DynamicResource DropShadowEffect}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 
-                <TextBlock Grid.Column="0" Text="♞ Xadrez Multiplayer" 
-                          Foreground="White" FontSize="18" FontWeight="Bold"
-                          VerticalAlignment="Center"/>
+                <!-- Title -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="♞" 
+                              Foreground="#3498DB" 
+                              FontSize="28" 
+                              FontWeight="Bold"
+                              Margin="0,0,10,0"
+                              VerticalAlignment="Center"/>
+                    <TextBlock Text="Xadrez Multiplayer" 
+                              Foreground="White" 
+                              FontSize="20" 
+                              FontWeight="Bold"
+                              VerticalAlignment="Center"/>
+                </StackPanel>
                 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0">
-                    <TextBox Text="{Binding ServerIp}" Width="100" Margin="0,0,5,0"
-                            ToolTip="IP do Servidor"/>
-                    <TextBox Text="{Binding ServerPort}" Width="50" Margin="0,0,5,0"
-                            ToolTip="Porta"/>
+                <!-- Connection Controls -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Border Background="#34495E" 
+                            CornerRadius="5" 
+                            Padding="10,8"
+                            Margin="0,0,10,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🌐" 
+                                      FontSize="16" 
+                                      Margin="0,0,8,0"
+                                      VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding ServerIp}" 
+                                    Width="120" 
+                                    Margin="0,0,8,0"
+                                    Style="{StaticResource ModernTextBox}"
+                                    ToolTip="IP do Servidor"/>
+                            <TextBlock Text=":" 
+                                      Foreground="#BDC3C7" 
+                                      FontSize="16"
+                                      Margin="0,0,5,0"
+                                      VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding ServerPort}" 
+                                    Width="60" 
+                                    Style="{StaticResource ModernTextBox}"
+                                    ToolTip="Porta"/>
+                        </StackPanel>
+                    </Border>
+                    
                     <Button Content="{Binding IsConnected, Converter={StaticResource ConnectionButtonConverter}}"
                             Command="{Binding ConnectCommand}"
                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
-                            Padding="10,5" Margin="0,0,5,0"/>
+                            Style="{StaticResource ModernButton}"
+                            Background="#27AE60"
+                            Margin="0,0,8,0"/>
                     
-                    <Button Content="Desconectar" Command="{Binding DisconnectCommand}"
+                    <Button Content="Desconectar" 
+                            Command="{Binding DisconnectCommand}"
                             IsEnabled="{Binding IsConnected}"
-                            Padding="10,5" Background="#E74C3C" Foreground="White"/>
+                            Style="{StaticResource ModernButton}"
+                            Background="#E74C3C"/>
                 </StackPanel>
-                
-                <TextBlock Grid.Column="2" Text="{Binding StatusMessage}" 
-                          Foreground="White" VerticalAlignment="Center"
-                          FontStyle="Italic"/>
             </Grid>
         </Border>
         
         <!-- Main Content -->
-        <Grid Grid.Row="1" Margin="0,10">
+        <Grid Grid.Row="1" Margin="0,15">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="3*"/>
                 <ColumnDefinition Width="2*"/>
             </Grid.ColumnDefinitions>
             
-            <!-- Área do Tabuleiro (Placeholder) -->
-            <Border Grid.Column="0" Background="#34495E" CornerRadius="5" Margin="0,0,5,0">
-                <TextBlock Text="Tabuleiro de Xadrez" 
-                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                          Foreground="White" FontSize="16"/>
+            <!-- Chess Board Area -->
+            <Border Grid.Column="0" 
+                    Background="#34495E" 
+                    CornerRadius="8" 
+                    Margin="0,0,10,0"
+                    Padding="20">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    
+                    <!-- Board Header -->
+                    <Border Grid.Row="0" 
+                            Background="#2C3E50" 
+                            CornerRadius="5" 
+                            Padding="12"
+                            Margin="0,0,0,15">
+                        <Grid>
+                            <TextBlock Text="Tabuleiro de Xadrez" 
+                                      HorizontalAlignment="Center" 
+                                      Foreground="White" 
+                                      FontSize="18"
+                                      FontWeight="SemiBold"/>
+                            
+                            <StackPanel Orientation="Horizontal" 
+                                       HorizontalAlignment="Right">
+                                <Border Background="#27AE60" 
+                                       CornerRadius="3" 
+                                       Padding="8,4"
+                                       Margin="0,0,5,0">
+                                    <TextBlock Text="Online" 
+                                              Foreground="White" 
+                                              FontSize="11"
+                                              FontWeight="Bold"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    
+                    <!-- Board Placeholder -->
+                    <Border Grid.Row="1" 
+                            Background="#2C3E50" 
+                            CornerRadius="8"
+                            BorderBrush="#7F8C8D"
+                            BorderThickness="2">
+                        <Grid>
+                            <Viewbox Stretch="Uniform" Margin="20">
+                                <TextBlock Text="♔ ♕ ♖ ♗ ♘ ♙&#x0a;♚ ♛ ♜ ♝ ♞ ♟" 
+                                          Foreground="#95A5A6" 
+                                          FontSize="48"
+                                          TextAlignment="Center"
+                                          LineHeight="60"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"/>
+                            </Viewbox>
+                            
+                            <TextBlock Text="Aguardando Partida..." 
+                                      HorizontalAlignment="Center" 
+                                      VerticalAlignment="Bottom"
+                                      Foreground="#BDC3C7" 
+                                      FontSize="14"
+                                      FontStyle="Italic"
+                                      Margin="0,0,0,20"/>
+                        </Grid>
+                    </Border>
+                </Grid>
             </Border>
             
-            <!-- Painel Lateral -->
-            <StackPanel Grid.Column="1" Margin="5,0,0,0">
-                <!-- Login -->
-                <GroupBox Header="Login" Margin="0,0,0,10">
-                    <StackPanel>
-                        <TextBox Text="{Binding Username}" Margin="0,0,0,5" 
-                                IsEnabled="{Binding IsConnected}"
-                                ToolTip="Nome de usuário"/>
-                        <Button Content="Login" Command="{Binding LoginCommand}"
-                                IsEnabled="{Binding IsConnected}"
-                                Padding="10,5" Background="#27AE60" Foreground="White"/>
-                    </StackPanel>
-                </GroupBox>
+            <!-- Right Panel -->
+            <StackPanel Grid.Column="1" Margin="10,0,0,0">
                 
-                <!-- Usuários Online -->
-                <GroupBox Header="Usuários Online" Margin="0,0,0,10">
+                <!-- Connection Status -->
+                <Border Background="#2C3E50" 
+                        CornerRadius="8" 
+                        Padding="15"
+                        Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Status da Conexão" 
+                                  Foreground="White" 
+                                  FontSize="14"
+                                  FontWeight="Bold"
+                                  Margin="0,0,0,10"/>
+                        
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <Ellipse Grid.Column="0" 
+                                    Width="12" 
+                                    Height="12" 
+                                    Margin="0,0,10,0"
+                                    VerticalAlignment="Center">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#E74C3C"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                                <Setter Property="Fill" Value="#27AE60"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            
+                            <TextBlock Grid.Column="1" 
+                                      Text="{Binding StatusMessage, FallbackValue='Desconectado'}" 
+                                      Foreground="#ECF0F1"
+                                      FontSize="13"
+                                      TextWrapping="Wrap"
+                                      VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Login Section -->
+                <Border Background="#2C3E50" 
+                        CornerRadius="8" 
+                        Padding="15"
+                        Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="Login" 
+                                  Foreground="White" 
+                                  FontSize="14"
+                                  FontWeight="Bold"
+                                  Margin="0,0,0,10"/>
+                        
+                        <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" 
+                                IsEnabled="{Binding IsConnected}"
+                                Style="{StaticResource ModernTextBox}"
+                                Margin="0,0,0,10"
+                                ToolTip="Nome de usuário"/>
+                        
+                        <Button Content="Entrar" 
+                                Command="{Binding LoginCommand}"
+                                IsEnabled="{Binding IsConnected}"
+                                Style="{StaticResource ModernButton}"
+                                Background="#27AE60"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Online Users -->
+                <Border Background="#2C3E50" 
+                        CornerRadius="8" 
+                        Padding="15">
                     <Grid>
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         
-                        <Button Grid.Row="0" Content="Atualizar" 
-                                Command="{Binding RefreshUsersCommand}"
-                                Margin="0,0,0,5"/>
+                        <TextBlock Grid.Row="0" 
+                                  Text="Usuários Online" 
+                                  Foreground="White" 
+                                  FontSize="14"
+                                  FontWeight="Bold"
+                                  Margin="0,0,0,10"/>
                         
-                        <ListBox Grid.Row="1" ItemsSource="{Binding OnlineUsers}"
-                                Height="200">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding}" Padding="5"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Button Grid.Row="1" 
+                                Content="🔄 Atualizar" 
+                                Command="{Binding RefreshUsersCommand}"
+                                Style="{StaticResource ModernButton}"
+                                Background="#34495E"
+                                HorizontalAlignment="Stretch"
+                                Margin="0,0,0,10"/>
+                        
+                        <Border Grid.Row="2" 
+                                Background="#34495E" 
+                                CornerRadius="5"
+                                BorderBrush="#2C3E50"
+                                BorderThickness="1">
+                            <ListBox ItemsSource="{Binding OnlineUsers}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Height="250"
+                                    ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#2C3E50" 
+                                                CornerRadius="4" 
+                                                Padding="10,8"
+                                                Margin="2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <Ellipse Grid.Column="0" 
+                                                        Width="8" 
+                                                        Height="8" 
+                                                        Fill="#27AE60"
+                                                        Margin="0,0,10,0"
+                                                        VerticalAlignment="Center"/>
+                                                
+                                                <TextBlock Grid.Column="1" 
+                                                          Text="{Binding}" 
+                                                          Foreground="White"
+                                                          FontSize="13"
+                                                          VerticalAlignment="Center"/>
+                                                
+                                                <Button Grid.Column="2" 
+                                                        Content="⚔️" 
+                                                        FontSize="14"
+                                                        ToolTip="Desafiar"
+                                                        Style="{StaticResource ModernButton}"
+                                                        Background="#E74C3C"
+                                                        Padding="8,4"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Background" Value="Transparent"/>
+                                        <Setter Property="BorderThickness" Value="0"/>
+                                        <Setter Property="Padding" Value="2"/>
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="ListBoxItem">
+                                                    <ContentPresenter/>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                            </ListBox>
+                        </Border>
                     </Grid>
-                </GroupBox>
+                </Border>
             </StackPanel>
         </Grid>
         
         <!-- Footer -->
-        <Border Grid.Row="2" Background="#ECF0F1" Padding="5" CornerRadius="3">
-            <TextBlock Text="{Binding StatusMessage}" FontStyle="Italic"/>
+        <Border Grid.Row="2" 
+                Background="#2C3E50" 
+                Padding="12" 
+                CornerRadius="8"
+                Margin="0,15,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <TextBlock Grid.Column="0" 
+                          Text="ℹ️" 
+                          FontSize="16"
+                          Margin="0,0,8,0"
+                          VerticalAlignment="Center"/>
+                
+                <TextBlock Grid.Column="1" 
+                          Text="{Binding StatusMessage, FallbackValue='Pronto para jogar'}" 
+                          Foreground="#ECF0F1"
+                          FontSize="13"
+                          FontStyle="Italic"
+                          VerticalAlignment="Center"/>
+                
+                <TextBlock Grid.Column="2" 
+                          Text="v1.0.0" 
+                          Foreground="#7F8C8D"
+                          FontSize="11"
+                          VerticalAlignment="Center"/>
+            </Grid>
         </Border>
         
         <!-- Progress Indicator -->
-        <Border Grid.Row="0" Grid.RowSpan="3" Background="#80000000" 
+        <Border Grid.Row="0" 
+                Grid.RowSpan="3" 
+                Background="#DD000000" 
+                CornerRadius="8"
                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <ProgressBar IsIndeterminate="True" Width="200" Height="20" Margin="0,0,0,10"/>
-                <TextBlock Text="Processando..." Foreground="White" HorizontalAlignment="Center"/>
-            </StackPanel>
+            <Border Background="#2C3E50" 
+                    CornerRadius="10" 
+                    Padding="30,25"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel>
+                    <ProgressBar IsIndeterminate="True" 
+                                Width="250" 
+                                Height="6" 
+                                Margin="0,0,0,15"
+                                Background="#34495E"
+                                Foreground="#3498DB"
+                                BorderThickness="0"/>
+                    <TextBlock Text="Processando..." 
+                              Foreground="White" 
+                              FontSize="15"
+                              FontWeight="SemiBold"
+                              HorizontalAlignment="Center"/>
+                </StackPanel>
+            </Border>
         </Border>
     </Grid>
+</ScrollViewer>
 </Window>

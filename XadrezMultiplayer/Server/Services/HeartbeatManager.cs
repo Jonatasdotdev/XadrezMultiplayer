@@ -15,7 +15,7 @@ public class HeartbeatManager
     }
 
     public async Task RunAsync(ClientState state, NetworkConnection connection, string clientId, CancellationToken cancellationToken)
-    {
+    {   await Task.Delay(5000);
         while (!cancellationToken.IsCancellationRequested && connection.IsConnected())
         {
             try
