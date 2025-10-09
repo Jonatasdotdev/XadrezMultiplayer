@@ -22,6 +22,8 @@ namespace Shared.Messages
         public RegisterRequest() => Type = "register";
         public string Username { get; set; } = null!;
         public string Password { get; set; } = null!;
+        
+        public string Email { get; set; } = string.Empty;
     }
 
     public class RegisterResponse : MessageBase

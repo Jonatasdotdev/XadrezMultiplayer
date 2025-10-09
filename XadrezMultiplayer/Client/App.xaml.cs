@@ -5,6 +5,7 @@ using Client.Services;
 using CommunityToolkit.Mvvm.Messaging;
 using Client.Models;
 using Client.ViewModels;
+using Client.Views;
 
 namespace Client
 {
@@ -27,13 +28,19 @@ namespace Client
                     services.Configure<NetworkSettings>(settings =>
                     {
                         settings.DefaultIp = "127.0.0.1";
-                        settings.DefaultPort = 5000;
+                        settings.DefaultPort = 8080;
                     });
+                    
+                    // Register Dialogs and Service
+                    services.AddTransient<LoginDialog>();
+                    services.AddTransient<RegisterDialog>();
+                    services.AddSingleton<DialogService>();
 
                     // Register ViewModels
                     services.AddTransient<MainViewModel>();
                     services.AddTransient<GameViewModel>();
                     services.AddTransient<LoginViewModel>();
+                    services.AddTransient<RegisterViewModel>();
                 })
                 .Build();
 
