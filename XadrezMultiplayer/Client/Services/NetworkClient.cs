@@ -9,15 +9,14 @@ using Client.Messages;
 using Client.Models;
 using Shared;
 
-
 namespace Client.Services
 {
     public interface INetworkClient
     {
         bool IsConnected { get; }
-    Task ConnectAsync(string ip, int port);
-    Task DisconnectAsync();
-    Task SendMessageAsync<T>(T message) where T : MessageBase;
+        Task ConnectAsync(string ip, int port);
+        Task DisconnectAsync();
+        Task SendMessageAsync<T>(T message) where T : MessageBase;
     }
 
     public class NetworkClient : INetworkClient, IAsyncDisposable
@@ -29,6 +28,7 @@ namespace Client.Services
         private CancellationTokenSource? _cts;
         private bool _isReconnecting;
         private Task? _receiveTask;
+        private int _reconnectAttempts;
 
         public bool IsConnected => _client?.Connected ?? false;
 
@@ -43,9 +43,9 @@ namespace Client.Services
             if (IsConnected) return;
 
             _cts = new CancellationTokenSource();
-            var attempts = 0;
+            _reconnectAttempts = 0;
 
-            while (attempts < _settings.ReconnectAttempts && !_isReconnecting)
+            while (_reconnectAttempts < _settings.ReconnectAttempts && !_isReconnecting)
             {
                 try
                 {
@@ -53,14 +53,15 @@ namespace Client.Services
                     await _client.ConnectAsync(ip, port, _cts.Token);
                     _stream = _client.GetStream();
                     _isReconnecting = false;
+                    _reconnectAttempts = 0; // Reset attempts on success
                     _receiveTask = StartReceivingAsync(_cts.Token);
                     await StartHeartbeatAsync(_cts.Token);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    attempts++;
-                    if (attempts == _settings.ReconnectAttempts)
+                    _reconnectAttempts++;
+                    if (_reconnectAttempts == _settings.ReconnectAttempts)
                     {
                         _messenger.Send(new ErrorMessage($"Falha ao conectar: {ex.Message}"));
                         throw;
@@ -74,6 +75,11 @@ namespace Client.Services
         {
             _cts?.Cancel();
             _isReconnecting = false;
+
+            if (_receiveTask != null)
+            {
+                await _receiveTask; // Aguarda o término da tarefa de recepção
+            }
 
             if (_stream != null)
             {
@@ -122,7 +128,6 @@ namespace Client.Services
 
         private void ProcessMessage(string message)
         {
-            //Processar diferentes tipos de mensagens
             var response = MessageBase.Deserialize<LoginResponse>(message);
             if (response?.Type == MessageTypes.LoginResponse && response.Success)
             {
@@ -132,7 +137,17 @@ namespace Client.Services
             {
                 _messenger.Send(new OnlineUsersMessage(usersResponse.Users));
             }
-            // Adicionar mais casos conforme necessário (MoveResponse, InviteResponse)
+            else if (MessageBase.Deserialize<RegisterResponse>(message) is RegisterResponse registerResponse)
+            {
+                if (registerResponse.Success)
+                {
+                    _messenger.Send(new RegisterSuccessMessage(registerResponse.Username ?? string.Empty));
+                }
+                else
+                {
+                    _messenger.Send(new RegisterFailedMessage(registerResponse.ErrorMessage ?? "Erro desconhecido"));
+                }
+            }
         }
 
         private async Task StartHeartbeatAsync(CancellationToken cancellationToken)
@@ -149,7 +164,7 @@ namespace Client.Services
 
         private async Task AttemptReconnectAsync()
         {
-            if (_isReconnecting || _cts?.IsCancellationRequested == true) return;
+            if (_isReconnecting || _cts?.IsCancellationRequested == true || _reconnectAttempts >= _settings.ReconnectAttempts) return;
 
             _isReconnecting = true;
             _messenger.Send(new StatusMessage("Tentando reconectar..."));

@@ -5,6 +5,7 @@ using Client.Messages;
 using Client.Services;
 using Shared.Messages;
 using System.Threading.Tasks;
+using System.Windows;
 
 namespace Client.ViewModels
 {
@@ -12,30 +13,32 @@ namespace Client.ViewModels
     {
         private readonly INetworkClient _networkClient;
         private readonly IMessenger _messenger;
+        private readonly DialogService _dialogService;
 
-        [ObservableProperty]
-        private string _username = string.Empty;
+        [ObservableProperty] private string _username = string.Empty;
 
-        [ObservableProperty]
-        private string _password = string.Empty;
+        [ObservableProperty] private string _password = string.Empty;
 
-        [ObservableProperty]
-        private string _email = string.Empty;
+        [ObservableProperty] private string _email = string.Empty;
 
-        [ObservableProperty]
-        private string _status = "Preencha os dados para registrar-se";
+        [ObservableProperty] private string _status = "Preencha os dados para registrar-se";
 
-        public RegisterViewModel(INetworkClient networkClient, IMessenger messenger)
+        public RegisterViewModel(INetworkClient networkClient, IMessenger messenger, DialogService dialogService)
         {
-            _networkClient = networkClient;
-            _messenger = messenger;
-            _messenger.Register<RegisterResponse>(this, (r, m) => OnRegisterResponse(m));
+            _networkClient = networkClient ?? throw new ArgumentNullException(nameof(networkClient));
+            _messenger = messenger ?? throw new ArgumentNullException(nameof(messenger));
+            _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
+            _messenger.Register<RegisterSuccessMessage>(this, (r, m) => OnRegisterSuccess(m));
+            _messenger.Register<RegisterFailedMessage>(this, (r, m) => OnRegisterFailed(m));
         }
+
+       
 
         [RelayCommand]
         private async Task RegisterAsync()
         {
-            if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password) || string.IsNullOrWhiteSpace(Email))
+            if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(Password) ||
+                string.IsNullOrWhiteSpace(Email))
             {
                 Status = "Preencha todos os campos";
                 return;
@@ -51,7 +54,7 @@ namespace Client.ViewModels
                     Password = Password,
                     Email = Email
                 };
-                await _networkClient.SendMessageAsync(request); 
+                await _networkClient.SendMessageAsync(request);
                 Status = "Aguardando resposta do servidor...";
             }
             catch (Exception ex)
@@ -60,24 +63,24 @@ namespace Client.ViewModels
             }
         }
 
-        private void OnRegisterResponse(RegisterResponse response)
+        private void OnRegisterSuccess(RegisterSuccessMessage message)
         {
-            if (response.Success)
-            {
-                Status = $"Registro bem-sucedido como {Username}! Redirecionando para login...";
-                // Navegar de volta para LoginDialog (implementar navegação)
-            }
-            else
-            {
-                Status = $"Erro no registro: {response.Error ?? "Erro desconhecido"}";
-            }
+            Status = $"Registro bem-sucedido como {message.Value}! Redirecionando para login...";
+            _dialogService.CloseCurrentDialog(Application.Current.MainWindow as Window);
+            _dialogService.ShowLoginDialog();
         }
 
-        [RelayCommand]
-        private void BackToLogin()
+        private void OnRegisterFailed(RegisterFailedMessage message)
         {
-            // Implementar navegação para LoginDialog
-            Status = "Voltando ao login...";
+            Status = $"Erro no registro: {message.Value}";
+
+
+            [RelayCommand]
+            void BackToLogin()
+            {
+                _dialogService.CloseCurrentDialog(Application.Current.MainWindow as Window);
+                _dialogService.ShowLoginDialog();
+            }
         }
     }
 }

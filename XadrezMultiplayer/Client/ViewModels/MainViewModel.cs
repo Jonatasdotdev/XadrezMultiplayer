@@ -39,6 +39,8 @@ namespace Client.ViewModels
         [ObservableProperty]
         private string _status = "Pronto para conectar";
 
+        private DialogService _dialogServ;
+
         public MainViewModel(INetworkClient networkClient, IMessenger messenger)
         {
             _networkClient = networkClient ?? throw new ArgumentNullException(nameof(networkClient));
@@ -148,7 +150,7 @@ namespace Client.ViewModels
         {
             if (_loginViewModel == null)
             {
-                _loginViewModel = App.Services.GetService<LoginViewModel>() ?? new LoginViewModel(_networkClient, _messenger);
+                _loginViewModel = App.Services.GetService<LoginViewModel>() ?? new LoginViewModel(_networkClient, _messenger, _dialogServ);
             }
 
             var loginWindow = new LoginDialog { DataContext = _loginViewModel };

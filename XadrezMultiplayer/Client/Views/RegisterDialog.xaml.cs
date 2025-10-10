@@ -1,4 +1,5 @@
-﻿using Client.ViewModels;
+﻿using System.Text.RegularExpressions;
+using Client.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using CommunityToolkit.Mvvm.Messaging;
 using System.Windows;
@@ -12,8 +13,11 @@ namespace Client.Views
         public RegisterDialog()
         {
             InitializeComponent();
-            DataContext = App.Services.GetService<RegisterViewModel>() ?? 
-                          new RegisterViewModel(App.Services.GetService<INetworkClient>()!, WeakReferenceMessenger.Default);
+            DataContext = App.Services.GetService<RegisterViewModel>() ??
+                          new RegisterViewModel(
+                              App.Services.GetService<INetworkClient>()!,
+                              WeakReferenceMessenger.Default,
+                              App.Services.GetService<DialogService>()!);
         }
     }
 }

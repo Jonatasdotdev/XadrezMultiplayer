@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Shared.Messages
 {
-    public abstract class MessageBase
+    public abstract partial class MessageBase
     {
         public string Type { get; set; } = null!;
         

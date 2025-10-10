@@ -30,7 +30,7 @@ namespace Client
                         settings.DefaultIp = "127.0.0.1";
                         settings.DefaultPort = 8080;
                     });
-                    
+
                     // Register Dialogs and Service
                     services.AddTransient<LoginDialog>();
                     services.AddTransient<RegisterDialog>();
@@ -48,6 +48,10 @@ namespace Client
 
             // Expor os serviços via Application.Current
             Current.Properties["Host"] = _host;
+
+            // Mostrar LoginDialog ao iniciar
+            var dialogService = _host.Services.GetService<DialogService>();
+            dialogService?.ShowLoginDialog();
         }
 
         public static IServiceProvider Services => (Current.Properties["Host"] as IHost)?.Services ?? throw new InvalidOperationException("Host não inicializado");

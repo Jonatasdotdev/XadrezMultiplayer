@@ -11,7 +11,11 @@ namespace Client.Views
         public LoginDialog()
         {
             InitializeComponent();
-            DataContext = App.Services.GetService<LoginViewModel>() ?? new LoginViewModel(App.Services.GetService<INetworkClient>()!, WeakReferenceMessenger.Default);
+            DataContext = App.Services.GetService<LoginViewModel>() ??
+                          new LoginViewModel(
+                              App.Services.GetService<INetworkClient>()!,
+                              WeakReferenceMessenger.Default,
+                              App.Services.GetService<DialogService>()!);
         }
     }
 }

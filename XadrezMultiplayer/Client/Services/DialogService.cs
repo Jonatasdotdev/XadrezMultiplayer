@@ -31,4 +31,5 @@ namespace Client.Services
             dialog?.Close();
         }
     }
+    
 }
